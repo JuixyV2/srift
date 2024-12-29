@@ -84,6 +84,31 @@ local ItemIcons = {
     ["Filter"]             = "rbxassetid://97910590950171";
     ["HelmetMask"]         = "rbxassetid://97910590950171";
     ["Buildable"]          = "rbxassetid://84982646381095";
+
+    containers = {
+        ["Safe"]                 = "rbxassetid://132271137515644";
+        ["SatchelBag"]           = "rbxassetid://114890020192405";
+        ["LargeABPOPABox"]       = "rbxassetid://83443703220023";
+        ["GrenadeCrate"]         = "rbxassetid://83443703220023";
+        ["MedBag"]               = "rbxassetid://132472384576134";
+        ["SportBag"]             = "rbxassetid://114890020192405";
+        ["CashRegister"]         = "rbxassetid://70782284025816";
+        ["Toolbox"]              = "rbxassetid://83443703220023";
+        ["FilingCabinet"]        = "rbxassetid://83443703220023";
+        ["SmallShippingCrate"]   = "rbxassetid://83443703220023";
+        ["LargeShippingCrate"]   = "rbxassetid://83443703220023";
+        ["LargeMilitaryBox"]     = "rbxassetid://83443703220023";
+        ["MilitaryCrate"]        = "rbxassetid://83443703220023";
+        ["SmallMilitaryBox"]     = "rbxassetid://83443703220023";
+        ["Fridge"]               = "rbxassetid://83443703220023";
+        ["SupplyDropEDF_XMAS"]   = "rbxassetid://97205696151219";
+        ["SupplyDropEDF"]        = "rbxassetid://97205696151219";
+        ["SupplyDropMilitary"]   = "rbxassetid://97205696151219";
+        ["HiddenCache"]          = "rbxassetid://83443703220023";
+        ["SupplyDropMilitary_XMAS"] = "rbxassetid://97205696151219";
+        ["KGBBag"]               = "rbxassetid://114890020192405";
+    }
+    
 }
 
 local OtherIcons = {
