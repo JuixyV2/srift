@@ -1501,7 +1501,7 @@ function Library:createManager(options: table)
 					if addon.getList and addon.getValue then
 						SavedData.Dropdown[elementName] = {list = addon:getList(), value = addon:getValue()}
 					else
-						warn("Dropdown missing getList or getValue for " .. elementName)
+						warn("Dropdown methods missing for " .. elementName)
 					end
 				end
 	
@@ -1521,7 +1521,7 @@ function Library:createManager(options: table)
 					SavedData.TextBox[elementName] = {text = addon:getText()}
 				end
 	
-				if not table.find(Excluded, elementName) and elementType == "ColorPicker" and typeof(addon) == "table" and addon.getColor then
+				if elementType == "ColorPicker" and typeof(addon) == "table" and addon.getColor then
 					SavedData.ColorPicker[elementName] = {color = {addon:getColor().R * 255, addon:getColor().G * 255, addon:getColor().B * 255}}
 				end
 			end
@@ -1529,6 +1529,7 @@ function Library:createManager(options: table)
 	
 		return SavedData
 	end
+	
 	
 	local function getThemeData()
 		local SavedData = {
