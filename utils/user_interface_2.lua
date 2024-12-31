@@ -1558,7 +1558,7 @@ function Library:createManager(options: table)
 		for elementType, elementData in pairs(shared.Flags) do
 			for elementName, _ in pairs(elementData) do
 				-- Handle Dropdown elements
-				if elementType == "Dropdown" and decoded.Dropdown and decoded.Dropdown[elementName] and elementName ~= "Configs" then
+				if elementType == "Dropdown" and decoded.Dropdown and type(decoded.Dropdown[elementName]) == "table" then
 					local dropdownData = decoded.Dropdown[elementName]
 					shared.Flags.Dropdown[elementName]:updateList({
 						list = dropdownData.list or {}, -- Default to empty list if not present
@@ -1600,6 +1600,7 @@ function Library:createManager(options: table)
 			end
 		end
 	end
+	
 	
 	
 	local function loadThemeConfig(fileName: string)
