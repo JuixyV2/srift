@@ -1573,7 +1573,7 @@ function Library:createManager(options: table)
 							-- Ensure the dropdown list is restored, and the selected value is set correctly
 							if shared.Flags.Dropdown[elementName] then
 								shared.Flags.Dropdown[elementName]:updateList({list = list})
-								shared.Flags.Dropdown[elementName]:setValue(value)  -- Set the selected value
+								shared.Flags.Dropdown[elementName]:updateValue(value)  -- Set the selected value
 							end
 						end
 					end
