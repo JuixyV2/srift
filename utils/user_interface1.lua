@@ -1497,12 +1497,8 @@ function Library:createManager(options: table)
 	
 		for elementType, elementData in pairs(shared.Flags) do
 			for elementName, addon in pairs(elementData) do
-				if elementType == "Dropdown" and typeof(addon) == "table" then
-					if addon.getList and addon.getValue then
-						SavedData.Dropdown[elementName] = {list = addon:getList(), value = addon:getValue()}
-					else
-						warn("Dropdown methods missing for " .. elementName)
-					end
+				if elementType == "Dropdown" and typeof(addon) == "table" and addon.getList and addon.getValue then
+					SavedData.Dropdown[elementName] = {list = addon:getList(), value = addon:getValue()}
 				end
 	
 				if elementType == "Toggle" and typeof(addon) == "table" and addon.getState then
@@ -1521,7 +1517,7 @@ function Library:createManager(options: table)
 					SavedData.TextBox[elementName] = {text = addon:getText()}
 				end
 	
-				if elementType == "ColorPicker" and typeof(addon) == "table" and addon.getColor then
+				if not table.find(Excluded, elementName) and elementType == "ColorPicker" and typeof(addon) == "table" and addon.getColor then
 					SavedData.ColorPicker[elementName] = {color = {addon:getColor().R * 255, addon:getColor().G * 255, addon:getColor().B * 255}}
 				end
 			end
@@ -1550,36 +1546,14 @@ function Library:createManager(options: table)
 	end
 	
 	local function loadSaveConfig(fileName: string)
-		local success, decoded = pcall(function()
-			return game:GetService("HttpService"):JSONDecode(readfile(options.folderName .. "/" .. fileName .. ".json"))
-		end)
+		local decoded = game:GetService("HttpService"):JSONDecode(readfile(options.folderName .. "/" .. fileName .. ".json"))
 	
-		if not success or not decoded then
-			warn("Failed to load configuration: " .. (decoded or "Unknown error"))
-			return
-		end
-	
-		-- Iterate through the flags and update them based on the decoded config
 		for elementType, elementData in pairs(shared.Flags) do
 			for elementName, _ in pairs(elementData) do
-				-- Handle Dropdown elements
-				if elementType == "Dropdown" then
-					local dropdownData = decoded.Dropdown and decoded.Dropdown[elementName]
-					if dropdownData then
-						if type(dropdownData) == "table" then
-							local list = dropdownData.list or {}
-							local value = dropdownData.value or ""
-	
-							-- Ensure the dropdown list is restored, and the selected value is set correctly
-							if shared.Flags.Dropdown[elementName] then
-								shared.Flags.Dropdown[elementName]:updateList({list = list})
-								shared.Flags.Dropdown[elementName]:updateValue(value)  -- Set the selected value
-							end
-						end
-					end
+				if elementType == "Dropdown" and decoded.Dropdown[elementName] and elementName ~= "Configs" then
+					shared.Flags.Dropdown[elementName]:updateList({list = decoded.Dropdown.list, default = decoded.Dropdown.value or {""}})
 				end
 	
-				-- Handle other element types like Toggle, Slider, etc.
 				if elementType == "Toggle" and decoded.Toggle[elementName] then
 					shared.Flags.Toggle[elementName]:updateState({state = decoded.Toggle[elementName].state})
 				end
