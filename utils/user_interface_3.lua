@@ -1548,7 +1548,7 @@ function Library:createManager(options: table)
 		local success, decoded = pcall(function()
 			return game:GetService("HttpService"):JSONDecode(readfile(options.folderName .. "/" .. fileName .. ".json"))
 		end)
-		
+	
 		if not success or not decoded then
 			warn("Failed to load configuration: " .. (decoded or "Unknown error"))
 			return
@@ -1558,48 +1558,80 @@ function Library:createManager(options: table)
 		for elementType, elementData in pairs(shared.Flags) do
 			for elementName, _ in pairs(elementData) do
 				-- Handle Dropdown elements
-				if elementType == "Dropdown" and decoded.Dropdown and type(decoded.Dropdown[elementName]) == "table" then
-					local dropdownData = decoded.Dropdown[elementName]
-					shared.Flags.Dropdown[elementName]:updateList({
-						list = dropdownData.list or {}, -- Default to empty list if not present
-						default = dropdownData.value or "" -- Default to empty string if not present
-					})
+				if elementType == "Dropdown" then
+					local dropdownData = decoded.Dropdown and decoded.Dropdown[elementName]
+					if dropdownData and type(dropdownData) == "table" then
+						local list = dropdownData.list or {}
+						local value = dropdownData.value or ""
+						shared.Flags.Dropdown[elementName]:updateList({
+							list = list,  -- Ensure list is a table
+							default = value  -- Default value
+						})
+					else
+						warn("Invalid dropdown data for " .. elementName)
+					end
 				end
 	
 				-- Handle Toggle elements
-				if elementType == "Toggle" and decoded.Toggle and decoded.Toggle[elementName] then
-					local toggleData = decoded.Toggle[elementName]
-					shared.Flags.Toggle[elementName]:updateState({state = toggleData.state or false}) -- Default to false if not set
+				if elementType == "Toggle" then
+					local toggleData = decoded.Toggle and decoded.Toggle[elementName]
+					if toggleData and type(toggleData) == "table" then
+						local state = toggleData.state or false  -- Default to false
+						shared.Flags.Toggle[elementName]:updateState({state = state})
+					else
+						warn("Invalid toggle data for " .. elementName)
+					end
 				end
 	
 				-- Handle Slider elements
-				if elementType == "Slider" and decoded.Slider and decoded.Slider[elementName] then
-					local sliderData = decoded.Slider[elementName]
-					shared.Flags.Slider[elementName]:updateValue({value = sliderData.value or 0}) -- Default to 0 if not set
+				if elementType == "Slider" then
+					local sliderData = decoded.Slider and decoded.Slider[elementName]
+					if sliderData and type(sliderData) == "table" then
+						local value = sliderData.value or 0  -- Default to 0
+						shared.Flags.Slider[elementName]:updateValue({value = value})
+					else
+						warn("Invalid slider data for " .. elementName)
+					end
 				end
 	
 				-- Handle Keybind elements
-				if elementType == "Keybind" and decoded.Keybind and decoded.Keybind[elementName] then
-					local keybindData = decoded.Keybind[elementName]
-					shared.Flags.Keybind[elementName]:updateKeybind({bind = keybindData.keybind or ""}) -- Default to empty string if not set
+				if elementType == "Keybind" then
+					local keybindData = decoded.Keybind and decoded.Keybind[elementName]
+					if keybindData and type(keybindData) == "table" then
+						local bind = keybindData.keybind or ""  -- Default to empty string
+						shared.Flags.Keybind[elementName]:updateKeybind({bind = bind})
+					else
+						warn("Invalid keybind data for " .. elementName)
+					end
 				end
 	
 				-- Handle TextBox elements
-				if elementType == "TextBox" and decoded.TextBox and decoded.TextBox[elementName] then
-					local textBoxData = decoded.TextBox[elementName]
-					shared.Flags.TextBox[elementName]:updateText({text = textBoxData.text or ""}) -- Default to empty string if not set
+				if elementType == "TextBox" then
+					local textBoxData = decoded.TextBox and decoded.TextBox[elementName]
+					if textBoxData and type(textBoxData) == "table" then
+						local text = textBoxData.text or ""  -- Default to empty string
+						shared.Flags.TextBox[elementName]:updateText({text = text})
+					else
+						warn("Invalid TextBox data for " .. elementName)
+					end
 				end
 	
 				-- Handle ColorPicker elements
-				if elementType == "ColorPicker" and decoded.ColorPicker and decoded.ColorPicker[elementName] then
-					local colorPickerData = decoded.ColorPicker[elementName]
-					shared.Flags.ColorPicker[elementName]:updateColor({
-						color = Color3.fromRGB(unpack(colorPickerData.color or {255, 255, 255})) -- Default to white if not set
-					})
+				if elementType == "ColorPicker" then
+					local colorPickerData = decoded.ColorPicker and decoded.ColorPicker[elementName]
+					if colorPickerData and type(colorPickerData) == "table" then
+						local color = colorPickerData.color or {255, 255, 255}  -- Default to white
+						shared.Flags.ColorPicker[elementName]:updateColor({
+							color = Color3.fromRGB(unpack(color))
+						})
+					else
+						warn("Invalid ColorPicker data for " .. elementName)
+					end
 				end
 			end
 		end
 	end
+	
 	
 	
 	
