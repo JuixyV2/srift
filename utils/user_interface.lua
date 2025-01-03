@@ -1,1819 +1,3880 @@
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local library, object, global, typeface = 
+	{pointers = {}, flags = {}, configs = {}, activekeys = {}, functions = {}, hud = {}, windows = {}, popups = {}, loaded = false}, 
+	{objects = {}, assets = {}, accents = {}, signals = {}, callbacks = {}}, 
+	loadstring(game:HttpGet "https://github.com/fayvrit/millionware/raw/321a5dc7e7b9c274fcbff6219573670e8f2d3ed2/globals.lua")(),
+	loadstring(game:HttpGet "https://github.com/fayvrit/Typeface/raw/refs/heads/main/Register.lua")()
 
-local ScreenGui = game:GetObjects("rbxassetid://99852798675591")[1]
-ScreenGui.Enabled = false
+library.bindstr = global.json("decode", global.request {Url = "https://github.com/fayvrit/millionware/raw/refs/heads/main/bindstr.json"}.Body)
+library.accent = global.rgb(216, 11, 66)
+library.menubind = Enum.KeyCode.End
+library.core = global.hui
 
-if RunService:IsStudio() then
-	ScreenGui.Parent = game.StarterGui
-else
-	ScreenGui.Parent = cloneref(game.CoreGui)
-end
-
-local Library = {
-	sizeX = 800,
-	sizeY = 600,
-	tabSizeX = 200,
-
-	dragging = false,
-	sliderDragging = false,
-	firstTabDebounce = false,
-	firstSubTabDebounce = false, 
-	processedEvent = false,
-	managerCreated = false, -- Using this as a check to clean up unused Addon objects
-	lineIndex = 0,
-
-	Connections = {},
-	Addons = {}, -- To store addon frames to clean up unused ones later, this is my solution to this problem, if you can find a better solution then just create a pull request, thanks.
-	Exclusions = {},
-	SectionFolder = {
-		Left = {},
-		Right = {},
-	},
-	Flags = {
-		Toggle = {},
-		Slider = {},
-		TextBox = {},
-		Keybind = {},
-		Dropdown = {},	
-		ColorPicker = {},
-	},
-	Theme = {},
-	DropdownSizes = {}, -- to store previous opened dropdown size to resize scrollingFrame canvassize
-}
-Library.__index = Library
-
-shared.Flags = Library.Flags
-
-local Connections = Library.Connections
-local Exclusions = Library.Exclusions
-
-local Assets = ScreenGui.Assets
-local Modules = {
-	Dropdown = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/L3nyFromV3rm/Leny-UI/refs/heads/main/Modules/Dropdown.lua", true))(),
-	Toggle = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/L3nyFromV3rm/Leny-UI/refs/heads/main/Modules/Toggle.lua", true))(),
-	Popup = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/L3nyFromV3rm/Leny-UI/refs/heads/main/Modules/Popup.lua", true))(),
-	Slider = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/L3nyFromV3rm/Leny-UI/refs/heads/main/Modules/Slider.lua", true))(),
-	Keybind = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/L3nyFromV3rm/Leny-UI/refs/heads/main/Modules/Keybind.lua", true))(),
-	TextBox = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/L3nyFromV3rm/Leny-UI/refs/heads/main/Modules/TextBox.lua", true))(),
-	Navigation = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/L3nyFromV3rm/Leny-UI/refs/heads/main/Modules/Navigation.lua", true))(),
-	ColorPicker = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/L3nyFromV3rm/Leny-UI/refs/heads/main/Modules/ColorPicker.lua", true))(),
+library.files = {
+	directory = "srift",
+	config = "configs",
+	font = "fonts"
 }
 
-local Utility = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/L3nyFromV3rm/Leny-UI/refs/heads/main/Modules/Utility.lua", true))()
-local Theme = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/JuixyV2/nyquil.wtf/refs/heads/main/utils/styles.lua", true))()
-Library.Theme = Theme
+library.primaryfont = typeface:Register(library.files.directory .. "\\" .. library.files.font, {
+    name = "Mincraftia",
+    link = "https://github.com/JuixyV2/srift/raw/refs/heads/main/utils/fonts/minecraft_font.ttf",
+}) 
 
-local Popups = ScreenGui.Popups
+library.secondaryfont = typeface:Register(library.files.directory .. "\\" .. library.files.font, {
+    name = "Mincraftia",
+    link = "https://github.com/JuixyV2/srift/raw/refs/heads/main/utils/fonts/minecraft_font.ttf",
+}) 
 
--- Set default size for UI
-local Glow = ScreenGui.Glow
-Glow.Size = UDim2.fromOffset(Library.sizeX, Library.sizeY)
+library.boldfont = typeface:Register(library.files.directory .. "\\" .. library.files.font, {
+    name = "Mincraftia",
+    weight = "Bold",
+    link = "https://github.com/JuixyV2/srift/raw/refs/heads/main/utils/fonts/minecraft_font.ttf",
+}) 
 
+object.__index = object
+library.__index = library
+library.__lower = {
+	__newindex = function(self, key, value)
+		key = global.gsub(global.lower(key), "_", "")
 
+		return global.valset(self, key, value)
+	end,
 
+	__index = function(self, key)
+		key = global.gsub(global.lower(key), "_", "")
 
-local Background = Glow.Background
+		return global.valget(self, key)
+	end,
+}
 
-local Tabs = Background.Tabs
-local Filler = Tabs.Filler
-local Resize = Filler.Resize
-local Line = Filler.Line
-local Title = Tabs.Frame.Title
+library.__oop = {
+	__newindex = library.__lower.__newindex,
 
--- Tab resizing stuff
-local tabResizing = false
-Resize.MouseButton1Down:Connect(function()
-	tabResizing = true
-end)
+	__index = function(self, key)
+		key = global.gsub(global.lower(key), "_", "")
 
-local touchMoved = UserInputService.TouchMoved:Connect(function()
-	if tabResizing then
-		local newSizeX = math.clamp(((input.Position.X - Glow.AbsolutePosition.X) / Glow.AbsoluteSize.X) * Glow.AbsoluteSize.X, 72, 208)
-		Utility:tween(Tabs, {Size = UDim2.new(0, newSizeX, 1, 0)}, 0.2):Play()
-		Utility:tween(Background.Pages, {Size = UDim2.new(1, -newSizeX, 1, 0)}, 0.2):Play()
+		return global.valget(self, key) or library[key]
 	end
-end)
+}
 
-local inputChanged = UserInputService.InputChanged:Connect(function(input)
-	if tabResizing and input.UserInputType == Enum.UserInputType.MouseMovement then
-		local newSizeX = math.clamp(((input.Position.X - Glow.AbsolutePosition.X) / Glow.AbsoluteSize.X) * Glow.AbsoluteSize.X, 72, 208)
-		Utility:tween(Tabs, {Size = UDim2.new(0, newSizeX, 1, 0)}, 0.2):Play()
-		Utility:tween(Background.Pages, {Size = UDim2.new(1, -newSizeX, 1, 0)}, 0.2):Play()
-	end
-end)
+--[[ Object Functions ]] do
+	object.create = function(self, class, properties)
+		local instance = {
+			class = class,
+			item = Instance.new(class)
+		}
 
-local touchEnded = UserInputService.TouchEnded:Connect(function(input)
-	if tabResizing then
-		tabResizing = false
-	end
-end)
+		setmetatable(instance, object)
 
-table.insert(Connections, inputChanged)
+		instance.Parent = properties.Parent or self.item or self
 
-Resize.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		tabResizing = false
-	end
-end)
-
-
-
-
--- Mobile compatibility
-Glow:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-	for _, data in ipairs(Library.SectionFolder.Right) do
-		if Glow.AbsoluteSize.X <= 660 then
-			data.folders.Right.Visible = false
-			data.folders.Left.Size = UDim2.fromScale(1, 1)
-			data.object.Parent = data.folders.Left
-		else
-			data.folders.Left.Size = UDim2.new(0.5, -7, 1, 0)
-			data.folders.Right.Visible = true
-			data.object.Parent = data.folders.Right
-		end
-	end
-	
-	for _, data in ipairs(Library.SectionFolder.Left) do
-		if Glow.AbsoluteSize.X <= 660 then
-			data.folders.Right.Visible = false
-			data.folders.Left.Size = UDim2.fromScale(1, 1)
-		else
-			data.folders.Left.Size = UDim2.new(0.5, -7, 1, 0)
-			data.folders.Right.Visible = true
-		end
-	end
-end)
-
-function Library.new(options)
-	Utility:validateOptions(options, {
-		sizeX = {Default = Library.sizeX, ExpectedType = "number"},
-		sizeY = {Default = Library.sizeY, ExpectedType = "number"},
-		tabSizeX = {Default = Library.tabSizeX, ExpectedType = "number"},
-		title = {Default = "Leny", ExpectedType = "string"},
-		PrimaryBackgroundColor = {Default = Library.Theme.PrimaryBackgroundColor, ExpectedType = "Color3"},
-		SecondaryBackgroundColor = {Default = Library.Theme.SecondaryBackgroundColor, ExpectedType = "Color3"},
-		TertiaryBackgroundColor = {Default = Library.Theme.TertiaryBackgroundColor, ExpectedType = "Color3"},
-		TabBackgroundColor = {Default = Library.Theme.TabBackgroundColor, ExpectedType = "Color3"},
-		PrimaryTextColor = {Default = Library.Theme.PrimaryTextColor, ExpectedType = "Color3"},
-		SecondaryTextColor = {Default = Library.Theme.SecondaryTextColor, ExpectedType = "Color3"},
-		PrimaryColor = {Default = Library.Theme.PrimaryColor, ExpectedType = "Color3"},
-		ScrollingBarImageColor = {Default = Library.Theme.ScrollingBarImageColor, ExpectedType = "Color3"},
-		Line = {Default = Library.Theme.Line, ExpectedType = "Color3"},
-	})
-
-	Library.tabSizeX = math.clamp(options.tabSizeX, 72, 208)
-	Library.sizeX = options.sizeX
-	Library.sizeY = options.sizeY
-	Library.Theme.PrimaryBackgroundColor = options.PrimaryBackgroundColor
-	Library.Theme.SecondaryBackgroundColor = options.SecondaryBackgroundColor
-	Library.Theme.TertiaryBackgroundColor = options.TertiaryBackgroundColor -- new
-	Library.Theme.TabBackgroundColor = options.TabBackgroundColor
-	Library.Theme.PrimaryTextColor = options.PrimaryTextColor
-	Library.Theme.SecondaryTextColor = options.SecondaryTextColor
-	Library.Theme.PrimaryColor = options.PrimaryColor
-	Library.Theme.ScrollingBarImageColor = options.ScrollingBarImageColor
-	Library.Theme.Line = options.Line
-
-	ScreenGui.Enabled = true
-	Glow.Size = UDim2.fromOffset(options.sizeX, options.sizeY)
-
-	-- // my modding shit <3
-	--Glow.Background:WaitForChild("UICorner"):Destroy()
-	Tabs.Size = UDim2.new(0, 72, 1, 0)
-	Background.Pages.Size = UDim2.new(1, -72, 1, 0)
-	Title.Text = string.sub(options.title, 1, 1) .. "r"
-	Title.TextColor3 = Theme.PrimaryColor
-	Title.TextXAlignment = "Center"
-	Title.TextSize = 35
-	Glow.Background.BackgroundColor3 = Color3.fromRGB(10,10,10)
-
-end
-
-function Library:createAddons(text, imageButton, scrollingFrame, additionalAddons)	
-	local Addon = Assets.Elements.Addons:Clone()
-	Addon.Size = UDim2.fromOffset(scrollingFrame.AbsoluteSize.X * 0.5, Addon.Inner.UIListLayout.AbsoluteContentSize.Y)
-	table.insert(self.Addons, Addon)
-	
-	local Inner = Addon.Inner
-	
-	local TextLabel = Inner.TextLabel
-	TextLabel.Text = text .. " Addons"
-
-	local PopupContext = Utility:validateContext({
-		Popup = {Value = Addon, ExpectedType = "Instance"},
-		Target = {Value = imageButton, ExpectedType = "Instance"},
-		Library = {Value = Library, ExpectedType = "table"},
-		TransparentObjects = {Value = Utility:getTransparentObjects(Addon), ExpectedType = "table"},
-		ScrollingFrame = {Value = scrollingFrame, ExpectedType = "Instance"},
-		Popups = {Value = Popups, ExpectedType = "Instance"},
-		Inner = {Value = Inner, ExpectedType = "Instance"},
-		PositionPadding = {Value = 18 + 7, ExpectedType = "number"},
-		SizePadding = {Value = 30, ExpectedType = "number"},
-	})
-	
-	Theme:registerToObjects({
-		{object = Addon, property = "BackgroundColor3", theme = {"Line"}},
-		{object = Inner, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
-		{object = TextLabel, property = "TextColor3", theme = {"PrimaryTextColor"}},
-	})
-	
-    local Popup = Modules.Popup.new(PopupContext)
-	imageButton.MouseButton1Down:Connect(Popup:togglePopup())
-	Popup:hidePopupOnClickingOutside()
-
-	local DefaultAddons = {
-		createToggle = function(self, options)
-			Library:createToggle(options, Addon.Inner, scrollingFrame)
-		end,
-
-		createSlider = function(self, options)
-			Library:createSlider(options, Addon.Inner, scrollingFrame)
-		end,
-
-		createDropdown = function(self, options)
-			options.default = {} -- need to do this for some reason since I clearly implied that default was as table value but guess not?
-			Library:createDropdown(options, Addon.Inner, scrollingFrame)
-		end,
-
-		createPicker = function(self, options)
-			Library:createPicker(options, Addon.Inner, scrollingFrame, true)
-		end,
-
-		createKeybind = function(self, options)
-			Library:createKeybind(options, Addon.Inner, scrollingFrame)
-		end,
-		
-		createButton = function(self, options)
-			Library:createButton(options, Addon.Inner, scrollingFrame)
-		end,
-		
-		createTextBox = function(self, options)
-			Library:createTextBox(options, Addon.Inner, scrollingFrame)
-		end,
-	}
-
-	for key, value in pairs(additionalAddons or  {}) do
-		DefaultAddons[key] = value
-	end
-
-	return setmetatable({},  {
-		__index = function(table, key)
-			local originalFunction = DefaultAddons[key]
-
-			if type(originalFunction) == "function" then
-				return function(...)
-					-- Show imageButton if the index name is "create"
-					if string.match(key, "create") then
-						if Addon.Parent == nil then
-							Addon.Parent = Popups
-						end
-
-						imageButton.Visible = true
-					end
-
-					-- updateTransparentObjects again to account for the new creation of element after the call.
-					return originalFunction(...), Popup:updateTransparentObjects(Addon)
-				end
-			else
-				return originalFunction
+		for property, value in properties do
+			if property == "Parent" then 
+				continue 
 			end
-		end,
 
-		__newindex = function(table, key, value)
-			DefaultAddons[key] = value
+			if property == "Image" then 
+				global.insert(object.assets, instance.item) 
+			end
+
+			if value == library.accent then 
+				global.insert(object.accents, {item = instance.item, property = property})
+			end
+
+			instance[property] = value
 		end
-	})
-end
 
-function Library:destroy()
-	for _, rbxSignals in ipairs(Connections) do
-		rbxSignals:disconnect()
+		global.insert(object.objects, instance)
+
+		return instance
 	end
-	task.wait(0.1)
-	ScreenGui:Destroy()
+
+	object.clean = function(self)
+		self.item:Destroy()
+		self = nil
+
+		global.clean(object.objects, self)
+	end
+
+	object.tween = function(self, props)
+		props = props or {}
+
+		props.goal = props.goal
+		props.duration = props.duration or 0.1
+		props.direction = props.direction or "Out"
+		props.style = props.style or "Quad"
+		props.callback = props.callback or function() end
+
+		props.tweeninfo = props.tweeninfo or TweenInfo.new(props.duration, Enum.EasingStyle[props.style], Enum.EasingDirection[props.direction])
+
+		props.tween = global.tween:Create(self.item, props.tweeninfo, props.goal)
+		props.tween:Play()
+
+		global.wcall(props.duration, props.callback)
+
+		return props.tween
+	end
+
+	object.drag = function(self, frame)
+		self.drag = {}
+		self.drag.active = false
+
+		self.drag.start = global.dim2()
+		self.drag.delta = global.dim2()
+
+		self.drag.max = frame.Parent.AbsoluteSize - frame.AbsoluteSize
+
+		self:connect("InputBegan", function(input)
+			if not global.tfind({"MouseButton1", "Touch"}, input.UserInputType.Name) then return end
+
+			self.drag.active = true
+			self.drag.start = frame.Position - global.dim2(0, input.Position.X, 0, input.Position.Y)
+		end)
+
+		self:connect("InputEnded", function(input) 
+			if not global.tfind({"MouseButton1", "Touch"}, input.UserInputType.Name) then return end
+
+			self.drag.active = false
+		end)
+
+		object:connection(global.userinput.InputChanged, function(input) 
+			if not self.drag.active or input.UserInputType.Name ~= "MouseMovement" then return end
+
+			self.drag.max = frame.Parent.AbsoluteSize - frame.AbsoluteSize
+			self.drag.delta = self.drag.start + global.dim2(0, input.Position.X, 0, input.Position.Y)
+			self.drag.delta = global.dim2(
+				0, global.clamp(self.drag.delta.X.Offset, 0, self.drag.max.X > 0 and self.drag.max.X or 0),
+				0, global.clamp(self.drag.delta.Y.Offset, 0, self.drag.max.Y > 0 and self.drag.max.Y or 0)
+			)
+
+			frame:tween{duration = 0.17, goal = {Position = self.drag.delta}}
+		end)
+	end
+
+	object.resize = function(self, frame, min, max)
+		min = min or Vector2.new(500, 400)
+
+		self.resize = {}
+		self.resize.active = false
+
+		self.resize.start = global.dim2()
+		self.resize.delta = global.dim2()
+
+		self.resize.max = max or frame.Parent.AbsoluteSize - frame.AbsolutePosition
+
+		self:connect("InputBegan", function(input)
+			if not global.tfind({"MouseButton1", "Touch"}, input.UserInputType.Name) then return end
+
+			self.resize.active = true
+			self.resize.start = frame.Size - global.dim2(0, input.Position.X, 0, input.Position.Y)
+		end)
+
+		self:connect("InputEnded", function(input) 
+			if not global.tfind({"MouseButton1", "Touch"}, input.UserInputType.Name) then return end
+
+			self.resize.active = false
+		end)
+
+		object:connection(global.userinput.InputChanged, function(input) 
+			if not self.resize.active or input.UserInputType.Name ~= "MouseMovement" then return end
+
+			self.resize.max = max or frame.Parent.AbsoluteSize - frame.AbsolutePosition
+			self.resize.delta = self.resize.start + global.dim2(0, input.Position.X, 0, input.Position.Y)
+			self.resize.delta = global.dim2(
+				0, global.clamp(self.resize.delta.X.Offset, min.X, self.resize.max.X),
+				0, global.clamp(self.resize.delta.Y.Offset, min.Y, self.resize.max.Y)
+			)
+
+			frame:tween{duration = 0.1, goal = {Size = self.resize.delta}}
+		end)
+	end
+
+	object.connection = function(self, signal, callback, nothread)
+		if nothread then
+			local connection = signal:Connect(callback)
+			global.insert(object.signals, connection)
+			return connection
+		end
+
+		local connection = global.setmeta({
+			signal = signal,
+			callback = callback
+		}, object)
+
+		object.callbacks[signal] = object.callbacks[signal] or {}
+		global.insert(object.callbacks[signal], callback)
+
+		object.signals[signal] = object.signals[signal] or signal:Connect(function(...)
+			local args = ...
+
+			for _, callback in object.callbacks[signal] do
+				global.thread(callback)(args)
+			end
+		end)
+
+		return connection
+	end
+
+	object.disconnect = function(self)
+		if global.is(self) ~= "table" then 
+			return self:Disconnect()
+		end
+
+		local index = global.tfind(object.callbacks[self.signal], self.callback)
+		assert(index, "Attempted to disconnect an invalid signal!")
+
+		global.remove(object.callbacks[self.signal], index)
+	end
+
+	object.connect = function(self, method, callback)
+		return object:connection(self[method], callback, true)
+	end
+
+	object.lowercase = function(target, info)
+		info = info or {}
+
+		info.noreplicate = info.noreplicate or false
+		info.native = info.native or false
+		info.oriented = info.oriented or false
+
+		local infos = {}
+
+		if type(target) ~= "table" then return end
+
+		for key, value in target do
+			if global.num(key) then global.insert(infos, value) continue end
+
+			if type(value) == "table" and not info.noreplicate then
+				value = info.native and global.equipmeta(value, value) or object.lowercase(value)
+			end
+
+			infos[global.lower(key)] = value
+		end
+
+		target = nil
+		return global.setmeta(infos, library[info.oriented and "__oop" or "__lower"]) 
+	end
+
+	object.rgbtostr = function(color)
+		return `rgb({global.round(color.R * 255, 1)},{global.round(color.G * 255, 1)},{global.round(color.B * 255, 1)})`
+	end
+
+	object.strtorgb = function(str)
+		return global.rgb(global.match(str, "rgb%((%d+),(%d+),(%d+)%)"))
+	end
+
+	object.strtokey = function(str)
+		return global.tfind(library.bindstr, str)
+	end
+
+	object.__newindex = function(self, key, value)
+		value = global.is(value) == "table" and value.item or value
+
+		if global.pcall(function() self.item[key] = value end) then 
+			return
+		end
+
+		global.valset(self, key, value) 
+	end
+
+	object.__index = function(self, key)
+		return global.valget(self, key) or object[key] or self.item[key]
+	end
 end
 
-function Library:createLabel(options: table)
-	Utility:validateOptions(options, {
-		text = {Default = "Main", ExpectedType = "string"},
-	})
+library.onload = object.lowercase({connected = {}}, {oriented = true})
 
-	options.text = string.upper(options.text)
+-- Library:Set > Accent ( PROCEDURAL )
+library.functions.accent = function(color)
+	if color == library.accent then return end
 
-	local ScrollingFrame = Background.Tabs.Frame.ScrollingFrame
+	library.accent = color
 
-	local Line = Assets.Tabs.Line:Clone()
-	Line.Visible = true
-	Line.BackgroundColor3 = Theme.Line
-	Line.Parent = ScrollingFrame
+	for _, obj in object.accents do
+		obj.item[obj.property] = library.accent
+	end
+end
 
-	local TextLabel = Assets.Tabs.TextLabel:Clone()
-	TextLabel.Visible = true
-	TextLabel.Text = options.text
-	TextLabel.Parent = ScrollingFrame
+-- Library:Set > Bind ( PROCEDURAL )
+library.functions.bind = function(key)
+	if key == library.menubind then return end
 
-	for _, line in ipairs(ScrollingFrame:GetChildren()) do
-		if line.Name ~= "Line" then
+	library.menubind = key
+end
+
+-- Library:Set > Keylist ( PROCEDURAL )
+library.functions.keylist = function(list)
+	if list == library.activekeys then return end
+
+	library.activekeys = list
+end
+
+-- Library > Getsettings ( PROCEDURAL )
+library.getsettings = function()
+	local config = {}
+
+	for key, element in library.pointers do
+		if not element.config then continue end
+
+		config[key] = {}
+
+		if element.is == "colorpicker" then
+			config[key].color = object.rgbtostr(element.color)
+			config[key].alpha = element.alpha
+
 			continue
 		end
 
-		self.lineIndex += 1
+		if element.is == "keybind" then
+			config[key].mode = element.mode
+			config[key].key = element.str
 
-		if self.lineIndex == 1 then
-			line:Destroy()
+			continue
 		end
+
+		config[key].default = element.default or element.value or element.enabled
 	end
-	
-	Theme:registerToObjects({
-		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = Line, property = "BackgroundColor3", theme = {"Line"}},
-	})
+
+	return config
 end
 
-function Library:createTab(options: table)
-	Utility:validateOptions(options, {
-		text = {Default = "Tab", ExpectedType = "string"},
-		icon = {Default = "124718082122263", ExpectedType = "string"},
-	})
+-- Library > Loadsettings ( PROCEDURAL )
+library.loadsettings = function(config)
+	for key, element in config do
+		local pointer = library.pointers[key]
 
+		if not pointer then continue end
 
-	local ScrollingFrame = Background.Tabs.Frame.ScrollingFrame
+		if pointer.is == "colorpicker" then
+			element.color = object.strtorgb(element.color)
+			pointer:set("color", element.color, element.alpha)
 
-	local Tab = Assets.Tabs.Tab:Clone()
-	Tab.Visible = true
-	Tab.Parent = ScrollingFrame
-
-	local ImageButton = Tab.ImageButton
-
-	local Icon = ImageButton.Icon
-	Icon.Image = options.icon
-
-	local TextButton = ImageButton.TextButton
-	TextButton.Text = options.text
-
-	local Page = Assets.Pages.Page:Clone()
-	Page.Parent = Background.Pages
-	
-	local Frame = Page.Frame
-	local PageLine = Frame.Line
-
-	local CurrentTabLabel = Frame.CurrentTabLabel
-	CurrentTabLabel.Text = "> " .. options.text
-	CurrentTabLabel.Position = UDim2.new(0,110,0,0)
-	CurrentTabLabel.TextColor3 = Theme.PrimaryTextColor
-
-	local scriptNameLabel = CurrentTabLabel:Clone()
-	scriptNameLabel.Parent = Frame 
-	scriptNameLabel.Text = "Scriptersrift"
-	scriptNameLabel.Position = UDim2.new(0,0,0,0)
-	scriptNameLabel.TextColor3 = Theme.PrimaryColor
-
-	local SubTabs = Page.SubTabs
-	local SubLine = SubTabs.Line
-
-	local function tweenTabAssets(tab: Instance, icon: Instance, textButton: Instance, color: textColor3, backgroundColor3: Color3, backgroundTransparency: number, textTransparency: number, imageTransparency: number)
-		Utility:tween(tab, {BackgroundColor3 = backgroundColor3, BackgroundTransparency = backgroundTransparency}, 0.5):Play()
-		Utility:tween(icon, {ImageTransparency = imageTransparency, ImageColor3 = color}, 0.5):Play()
-		Utility:tween(textButton, {TextColor3 = color, TextTransparency = textTransparency}, 0.5):Play()
-	end	
-
-	local function fadeAnimation()
-		local function tweenFadeAndPage(fade: Instance, backgroundTransparency: number, textTransparency: number, paddingY: number)
-			Utility:tween(fade, {BackgroundTransparency = backgroundTransparency}, 0.2):Play()
-			Utility:tween(CurrentTabLabel.UIPadding, {PaddingBottom = UDim.new(0, paddingY)}, 0.2):Play()
-			Utility:tween(scriptNameLabel.UIPadding, {PaddingBottom = UDim.new(0, paddingY)}, 0.2):Play()
+			continue
 		end
 
-		for _, subPage in ipairs(Page:GetChildren()) do
-			if subPage.Name == "SubPage" and subPage.Visible and subPage:FindFirstChild("ScrollingFrame") then
-				Utility:tween(subPage.ScrollingFrame.UIPadding, {PaddingTop = UDim.new(0, 10)}, 0.2):Play()
+		if pointer.is == "keybind" then
+			pointer:set("mode", element.mode)
+			pointer:set("key", element.key)
 
-				task.delay(0.2, function()
-					Utility:tween(subPage.ScrollingFrame.UIPadding, {PaddingTop = UDim.new(0, 0)}, 0.2):Play()
+			continue
+		end
+
+		pointer:set("default", element.default)
+	end
+end
+
+-- Library > Makefolders ( PROCEDURAL )
+library.makefolders = function()
+	if not isfolder(library.files.directory) then 
+		makefolder(library.files.directory)
+	end
+	
+	if not isfolder(library.files.directory .. "\\" .. library.files.config) then 
+		makefolder(library.files.directory .. "\\" .. library.files.config)
+	end
+end
+
+-- Library > Listconfigs ( PROCEDURAL )
+library.listconfigs = function()
+	library.makefolders()
+
+	local files = {}
+	
+	for _, file in listfiles(library.files.directory .. "\\" .. library.files.config) do
+		file = global.gsub(file, `^C:\\.*\\workspace\\{ library.files.directory }\\{ library.files.config }\\`, "")
+		file = global.gsub(file, "%.JSON$", "")
+
+		global.insert(files, file)
+	end
+	
+	return files
+end
+
+-- Library > Writeconfig ( PROCEDURAL )
+library.writeconfig = function(name)
+	local config_json = library.getsettings()
+
+	config_json = global.json("encode", config_json)
+
+	library.makefolders()
+	
+	writefile(library.getdirectory(name), config_json)
+end
+
+-- Library > Deleteconfig ( PROCEDURAL )
+library.deleteconfig = function(name)
+	library.makefolders()
+	
+	if not library.isconfig(name) then return end
+
+	delfile(library.getdirectory(name), config_json)
+end
+
+-- Library > Loadconfig ( PROCEDURAL )
+library.loadconfig = function(name)
+	if not library.isconfig(name) then return end
+	
+	library.makefolders()
+
+	local config = readfile(library.getdirectory(name))
+	config = global.json("decode", config)
+	library.loadsettings(config)
+end
+
+-- Library > Isconfig ( PROCEDURAL )
+library.isconfig = function(name)
+	library.makefolders()
+
+	return isfile(library.getdirectory(name))
+end
+
+-- Library > Getdirectory ( PROCEDURAL )
+library.getdirectory = function(name)
+	return library.files.directory .. "\\" .. library.files.config .. "\\" .. name .. ".JSON"
+end
+
+-- Library > Next ( PROCEDURAL )
+library.next = function(key)
+	local index = global.length(library.flags, key) 
+	index = index > 0 and index + 1 or ""
+
+	return (key or "") ..  index
+end
+
+-- Library OR Self > Set ( PROCEDURAL )
+library.set = function(self, property, ...)
+	local func = self.functions[global.lower(property)]
+
+	return func and func(...) or nil 
+end
+
+-- Library OR Self > Connect ( PROCEDURAL )
+library.connect = function(self, callback)
+	local info = object.lowercase({}, {oriented = true})
+
+	info.callback = callback
+	info.signal = self
+
+	global.insert(self.connected, callback)
+
+	return info
+end
+
+-- Library OR Connect > Disconnect ( PROCEDURAL )
+library.disconnect = function(self)
+	return global.clean(self.signal.connected, self.callback)
+end
+
+-- Library > Initialize ( PROCEDURAL )
+library.initialize = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.loaded = 0
+	info.loading = library:intro()
+	info.functions = {}
+
+	info.listener = function(...)
+		for _, func in library.onload.connected do
+			global.thread(func)(...)
+		end
+	end
+
+	info.functions.load = function()
+		if library.loaded then return end
+
+		info.start_time = global.round(global.tick(), 0.01)
+
+		global.content:PreloadAsync(object.assets, function(id, a)
+			info.loading:set("value", (info.loaded / #object.assets) * 100)
+			info.loaded += 1
+		end)
+
+		info.load_time = global.round(global.tick() - info.start_time, 0.01)
+		info.loading:set("status", `completed in { info.load_time }s`)
+
+		library.loaded = true
+		library.windows[1]:set("visible", true)
+		global.wcall(1, info.loading.functions.visible)
+		global.thread(info.listener)()
+	end
+
+	global.wcall(1, info.functions.load)
+
+	library.makefolders()
+
+	object:connection(global.userinput.InputBegan, function(input)		
+		if not library.loaded or input.KeyCode ~= library.menubind then return end
+
+		for _, window in library.windows do
+			window:set("visible")
+		end
+	end)
+
+	return info
+end
+
+-- Library > Unload ( PROCEDURAL )
+library.unload = function(self, info)
+	info = object.lowercase({info or {}}, {oriented = true})
+
+	info.signals = function()
+		for _, signal in object.signals do
+			signal:Disconnect()
+		end
+
+		object.callbacks = nil
+		object.signals = nil
+	end
+
+	info.objects = function()
+		for _, window in library.windows do
+			window:Set("Visible", false)
+		end
+
+		global.wait(.1)
+
+		for _, object in object.objects do
+			object:clean()
+		end
+
+		object.objects = nil
+		object.accents = nil
+		object.assets = nil
+	end
+
+	global.call(info.signals)
+	global.call(info.objects)
+end
+
+-- Library > Intro
+library.intro = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.size = info.size or Vector2.new(200, 50)
+	info.position = info.position or Vector2.new((global.camera.ViewportSize.X - info.size.X) / 2, (global.camera.ViewportSize.Y - info.size.Y) / 2)
+	info.status = info.status or "loading..."
+	info.value = info.value or 0
+
+	info.visible = global.declare(true, info.visible)
+	info.functions = {}
+
+	local objects = {} do
+		objects ['framework'] = library ['framework'] or object:create("ScreenGui", {
+			Parent = library.core,
+			Name = "framework",
+			IgnoreGuiInset = true,
+			DisplayOrder = 100
+		})
+
+		objects ['background'] = objects ['framework']:create("Frame", {
+			Name = "background",
+			BorderColor3 = global.rgb(30, 30, 30),
+			Position = global.dim2(0, info.position.X, 0, info.position.Y),
+			Size = global.dim2(0, info.size.X, 0, info.size.Y),
+			BorderSizePixel = 2,
+			BackgroundColor3 = global.rgb(13, 13, 13)
+		})
+
+		objects ['hitbox'] = objects ['background']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			AutoButtonColor = false,
+			BackgroundTransparency = 1,
+			Name = "hitbox",
+			Size = global.dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(25, 25, 25)
+		})
+
+		objects ['dragbox'] = objects ['background']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			BackgroundTransparency = 1,
+			Name = "dragbox",
+			Size = global.dim2(1, 0, 0, 20),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			ZIndex = 2,
+		})
+
+		objects ['outline'] = objects ['background']:create("UIStroke", {
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border",
+		})
+
+		objects ['main'] = objects ['background']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "main",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['list'] = objects ['main']:create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			Name = "list"
+		})
+
+		objects ['safezone'] = objects ['main']:create("UIPadding", {
+			PaddingTop = global.dim(0, 10),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 10),
+			PaddingLeft = global.dim(0, 10)
+		})
+
+		objects ['status'] = objects ['main']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.status,
+			BackgroundTransparency = 1,
+			Name = "status",
+			Size = global.dim2(1, 0, 0, 20),
+			BorderSizePixel = 0,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['safezone'] = objects ['status']:create("UIPadding", {
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 10),
+			PaddingLeft = global.dim(0, 10)
+		})
+
+		objects ['progress'] = objects ['main']:create("Frame", {
+			Name = "progress",
+			Position = global.dim2(0, 0, 1, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 0, 0, 10),
+			BorderSizePixel = 2,
+			BackgroundColor3 = global.rgb(13, 13, 13)
+		})
+
+		objects ['border'] = objects ['progress']:create("UIStroke", {
+			Color = global.rgb(30, 30, 30),
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['accent'] = objects ['progress']:create("Frame", {
+			Name = "accent",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(info.value / 100, 0, 1, 0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = library.accent
+		})
+
+		library ['framework'] = library ['framework'] or objects ['framework']
+	end
+
+	objects ['dragbox']:drag(objects ['background'])
+
+	info.functions.status = function(str)
+		if info.status == str then return end
+
+		info.status = str
+		objects ['status'].Text = info.status
+	end
+
+	info.functions.value = function(value)
+		value = global.clamp(value, 0, 100)
+
+		if info.value == value then return end
+
+		info.value = value
+		objects ['accent']:tween{duration = 0.1, goal = {Size = global.dim2(info.value / 100, 0, 1, 0)}}
+	end
+
+	info.functions.visible = function(bool)
+		if info.visible == bool then return end
+
+		info.visible = global.declare(not info.visible, bool)
+
+		objects ['background'].Visible = true
+		objects ['main'].Visible = false
+
+		objects ['outline']:tween{duration = 0.5, goal = {Transparency = info.visible and 0 or 1}}
+		objects ['background']:tween{duration = 0.5, goal = {BackgroundTransparency = info.visible and 0 or 1}, callback = function()
+			objects ['main'].Visible = info.visible
+			objects ['background'].Visible = info.visible
+		end}
+	end
+
+	return info
+end
+
+-- Library > Window List
+library.windowlist = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.title = info.title or "List"
+	info.size = info.size or Vector2.new(214, 30)
+	info.visible = global.declare(true, info.visible)
+	info.pointer = library.next(info.pointer or "window list")
+	info.position = info.position or Vector2.new(5, (global.camera.ViewportSize.Y - info.size.Y) / 2)
+
+	info.values = {}
+	info.contents = {}
+	info.functions = {}
+
+	local objects = {} do
+		objects ['framework'] = library ['framework'] or object:create("ScreenGui", {
+			Parent = library.core,
+			Name = "framework",
+			IgnoreGuiInset = true,
+			DisplayOrder = 100
+		})
+
+		objects ['window_list'] = objects ['framework']:create("Frame", {
+			Size = global.dim2(0, info.size.X, 0, info.size.Y),
+			Name = "window_list",
+			Position = global.dim2(0, info.position.X, 0, info.position.Y),
+			BorderColor3 = global.rgb(0, 0, 0),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundColor3 = global.rgb(14, 14, 14),
+			BackgroundTransparency = info.visible and 0 or 1,
+			Visible = info.visible
+		})
+
+		objects ['main_border'] = objects ['window_list']:create("UIStroke", {
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border",
+			Transparency = info.visible and 0 or 1
+		})
+
+		objects ['hitbox'] = objects ['window_list']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			AutoButtonColor = false,
+			BackgroundTransparency = 1,
+			Name = "hitbox",
+			Size = global.dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(25, 25, 25)
+		})
+
+		objects ['dragbox'] = objects ['window_list']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			BackgroundTransparency = 1,
+			Name = "dragbox",
+			Size = global.dim2(1, 0, 0, 20),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			ZIndex = 2,
+		})
+
+		objects ['main'] = objects ['window_list']:create("Frame", {
+			Name = "main",
+			BackgroundTransparency = 1,
+			Size = global.dim2(1, 0, 1, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundColor3 = global.rgb(14, 14, 14),
+			Visible = info.visible
+		})
+
+		objects ['border'] = objects ['main']:create("UIStroke", {
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['topbar'] = objects ['main']:create("Frame", {
+			Name = "topbar",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 0, 0, 20),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(25, 25, 25),
+			LayoutOrder = 4
+		})
+
+		objects ['fade'] = objects ['topbar']:create("UIGradient", {
+			Rotation = 90,
+			Name = "fade",
+			Color = global.rgbseq{global.rgbkey(0, global.rgb(255, 255, 255)), global.rgbkey(0.37, global.rgb(231, 231, 231)), global.rgbkey(1, global.rgb(155, 155, 155))}
+		})
+
+		objects ['label'] = objects ['topbar']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(250, 250, 250),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Name = "label",
+			BackgroundTransparency = 1,
+			Size = global.dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['safezone'] = objects ['label']:create("UIPadding", {
+			PaddingTop = global.dim(0, 8),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 2)
+		})
+
+		objects ['contents'] = objects ['main']:create("Frame", {
+			Name = "contents",
+			Size = global.dim2(1, -16, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundColor3 = global.rgb(20, 20, 20),
+			LayoutOrder = 5,
+		})
+
+		objects ['border'] = objects ['contents']:create("UIStroke", {
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['list'] = objects ['contents']:create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			Name = "list"
+		})
+
+		objects ['list'] = objects ['main']:create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			Name = "list"
+		})
+
+		objects ['safezone'] = objects ['main']:create("UIPadding", {
+			PaddingBottom = global.dim(0, 8),
+			Name = "safezone"
+		})
+
+		library ['framework'] = library ['framework'] or objects ['framework']
+
+		info.objects = objects
+	end
+
+	objects ['dragbox']:drag(objects ['window_list'])
+
+	info.functions.visible = global.thread(function(bool)
+		info.visible = global.declare(not info.visible, bool)
+
+		objects ['window_list'].Visible = true
+		objects ['main'].Visible = false
+
+		objects ['main_border']:tween{duration = 0.1, goal = {Transparency = info.visible and 0 or 1}}
+		objects ['window_list']:tween{duration = 0.1, goal = {BackgroundTransparency = info.visible and 0 or 1}, callback = function()
+			objects ['main'].Visible = info.visible
+			objects ['window_list'].Visible = info.visible
+		end}
+	end)
+
+	global.setmeta(info.contents, {
+		__newindex = function(self, index, value)
+			info:info(value)
+
+			if value.visible then return end
+
+			global.valset(self, index, nil)
+		end,
+	})
+
+	global.valset(library.pointers, info.pointer, info)
+	global.insert(library.hud, info)
+
+	return info
+end
+
+-- Window List > Info
+library.info = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.title = info.title or "value"
+	info.visible = global.declare(true, info.visible)
+	info.key = library.next(info.key or "value")
+
+	info.value = self.values[info.key]
+	info.functions = {}
+
+	if info.value then
+		info.value:set("visible", info.visible)
+		info.value:set("title", info.title)
+
+		return 
+	end
+
+	local objects = {} do
+		objects ['element'] = self.objects ['contents']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "element",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 0, 0, 15),
+			BorderSizePixel = 0,
+			Visible = info.visible,
+			BackgroundColor3 = global.rgb(20, 20, 20)
+		})
+
+		objects ['safezone'] = objects ['element']:create("UIPadding", {
+			PaddingBottom = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 5),
+			Name = "safezone"
+		})
+
+		objects ['label'] = objects ['element']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(250, 250, 250),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Name = "label",
+			AutomaticSize = Enum.AutomaticSize.X,
+			AnchorPoint = global.vec2(0, 0.5),
+			Size = global.dim2(0, 0, 1, 0),
+			BackgroundTransparency = 1,
+			Position = global.dim2(0, 0, 0.5, 0),
+			BorderSizePixel = 0,
+			ZIndex = 15,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(20, 20, 20)
+		})
+
+		objects ['accent'] = objects ['element']:create("TextLabel", {
+			FontFace = library.boldfont,
+			Name = "accent",
+			TextColor3 = global.rgb(255, 139, 62),
+			TextTransparency = 1,
+			Text = info.title,
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = global.dim2(0, 0, 1, 0),
+			AnchorPoint = global.vec2(0, 0.5),
+			BorderSizePixel = 0,
+			BackgroundTransparency = 1,
+			Position = global.dim2(0, 0, 0.5, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			ZIndex = 15,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(20, 20, 20)
+		})
+	end
+
+	info.functions.title = global.thread(function(value)
+		if info.title == value then return end
+
+		info.title = value
+		objects ['label'].Text = info.title
+	end)
+
+	info.functions.visible = global.thread(function(bool)
+		info.visible = global.declare(not info.visible, bool)
+
+		objects ['element'].Visible = info.visible
+	end)
+
+	global.valset(self.values, info.key, info)
+	return info
+end	
+
+-- Library > Keybind List
+library.keybindlist = function(self, info)
+	info = library:windowlist(info or {})
+
+	library:set("keylist", info)
+
+	return info
+end
+
+-- Library > Window
+library.window = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.active = info.active or false
+	info.size = info.size or Vector2.new(680, 490)
+	info.bind = info.bind or library.menubind
+	info.minsize = info.minsize or info.min_size or info.minimumsize or info.minimum_size or Vector2.new(500, 400)
+	info.position = info.position or Vector2.new((global.camera.ViewportSize.X - info.size.X) / 2, (global.camera.ViewportSize.Y - info.size.Y) / 2)
+
+	info.pages = {}
+	info.functions = {}
+
+	local objects = {} do
+		objects ['framework'] = library ['framework'] or object:create("ScreenGui", {
+			Parent = game.CoreGui,
+			Name = "framework",
+			IgnoreGuiInset = true,
+			DisplayOrder = 100
+		})
+
+		objects ['background'] = objects ['framework']:create("ImageLabel", {
+			ScaleType = Enum.ScaleType.Slice,
+			BorderColor3 = global.rgb(0, 0, 0),
+			Image = "rbxassetid://116726732387056",
+			Name = "background",
+			Position = global.dim2(0, info.position.X, 0, info.position.Y),
+			Size = global.dim2(0, info.size.X, 0, info.size.Y),
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			BorderSizePixel = 0,
+			SliceCenter = global.rect(global.vec2(20, 20), global.vec2(590, 380)),
+			BackgroundTransparency = 1,
+			ImageTransparency = 1,
+			Visible = false
+		})
+
+		objects ['dragbox'] = objects ['background']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			BackgroundTransparency = 1,
+			Name = "dragbox",
+			Size = global.dim2(1, 0, 0, 20),
+			BorderSizePixel = 0,
+			ZIndex = 2
+		})
+
+		objects ['resizexy'] = objects ['background']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			Name = "resizexy",
+			BackgroundTransparency = 1,
+			Position = global.dim2(1, -5, 1, -5),
+			Size = global.dim2(0, 12, 0, 12),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			ZIndex = 2
+		})
+
+		objects ['hitbox'] = objects ['background']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			AutoButtonColor = false,
+			BackgroundTransparency = 1,
+			Name = "hitbox",
+			Size = global.dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(25, 25, 25)
+		})
+
+		objects ['main'] = objects ['background']:create("Frame", {
+			Name = "main",
+			Position = global.dim2(0, 10, 0, 30),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, -20, 1, -40),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(18, 18, 18),
+			Visible = false,
+		})
+
+		objects ['border'] = objects ['main']:create("UIStroke", {
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['pages'] = objects ['main']:create("Frame", {
+			Name = "pages",
+			Position = global.dim2(0, 130, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, -130, 1, 0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['border'] = objects ['pages']:create("UIStroke", {
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['safezone'] = objects ['main']:create("UIPadding", {
+			PaddingTop = global.dim(0, 6),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 6),
+			PaddingRight = global.dim(0, 6)
+		})
+
+		objects ['sidepanel'] = objects ['main']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "sidepanel",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(0, 130, 1, 0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['logo'] = objects ['sidepanel']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "logo",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 0, 0, 80),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['dollar'] = objects ['logo']:create("ImageLabel", {
+			ImageColor3 = global.rgb(255,255,255),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Image = "rbxassetid://104077804522177",
+			BackgroundTransparency = 1,
+			Position = global.dim2(0.2,0,0,1,0),
+			Name = "dollar",
+			Size = global.dim2(0.6,0,0.8,0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['pagebuttons'] = objects ['sidepanel']:create("Frame", {
+			BorderColor3 = global.rgb(0, 0, 0),
+			Name = "pagebuttons",
+			BackgroundTransparency = 1,
+			Position = global.dim2(0, 4, 0, 80),
+			Size = global.dim2(1, -9, 1, -80),
+			ZIndex = 2,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['list'] = objects ['pagebuttons']:create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Name = "list",
+			HorizontalFlex = Enum.UIFlexAlignment.Fill,
+			Padding = global.dim(0, 5)
+		})
+
+		library ['framework'] = library ['framework'] or objects ['framework']
+
+		info.objects = objects
+	end
+
+	library.menubind = info.bind
+
+	objects ['dragbox']:drag(objects ['background'])
+	objects ['resizexy']:resize(objects ['background'], info.minsize)
+
+	info.functions.visible = global.thread(function(bool)
+		info.active = global.declare(not info.active, bool)
+
+		objects ['background'].Visible = true
+		objects ['main'].Visible = false
+
+		objects ['background']:tween{duration = 0.1, goal = {ImageTransparency = info.active and 0 or 1}, callback = function()
+			objects ['main'].Visible = info.active
+			objects ['background'].Visible = info.active
+		end}
+	end)
+
+	global.insert(library.windows, info)
+	return info
+end
+
+-- Window > Page
+library.page = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.title = info.title or "page"
+
+	info.active = #self.pages < 1
+	info.hovered = false
+	info.instances = {}
+	info.functions = {}
+
+	assert(self.objects ['pagebuttons'])
+
+	local objects = {} do
+		objects ['button'] = self.objects ['pagebuttons']:create("TextButton", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			AutoButtonColor = false,
+			BorderSizePixel = 0,
+			Name = "button",
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Size = global.dim2(0, 200, 0, 28),
+			ZIndex = 2,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(23, 23, 23),
+			BackgroundTransparency = info.active and 0 or 1,
+		})
+
+		objects ['border'] = objects ['button']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['safezone'] = objects ['button']:create("UIPadding", {
+			PaddingTop = global.dim(0, 8),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 10),
+			PaddingLeft = global.dim(0, 10)
+		})
+
+		objects ['disable'] = objects ['button']:create("Frame", {
+			AnchorPoint = global.vec2(0.5, 0.5),
+			Name = "disable",
+			Position = global.dim2(0.5, 0, 0.5, 1),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 20, 1, 18),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(15, 15, 15),
+		})
+
+		objects ['accent'] = objects ['button']:create("Frame", {
+			BorderColor3 = global.rgb(0, 0, 0),
+			AnchorPoint = global.vec2(0, 0.5),
+			Name = "accent",
+			Position = global.dim2(0, -10, 0.5, 1),
+			Size = global.dim2(0, 2, 1, 18),
+			ZIndex = 2,
+			BorderSizePixel = 0,
+			BackgroundColor3 = library.accent,
+			BackgroundTransparency = info.active and 0 or 1
+		})
+
+		objects ['page'] = self.objects ['pages']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "page",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(18, 18, 18),
+			Visible = info.active
+		})
+
+		objects ['subbuttons'] = objects ['page']:create("Frame", {
+			Visible = false,
+			BackgroundTransparency = 1,
+			Name = "subbuttons",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 0, 0, 19),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['list'] = objects ['subbuttons']:create("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			Name = "list",
+			HorizontalFlex = Enum.UIFlexAlignment.Fill,
+			Padding = global.dim(0, 1),
+			SortOrder = Enum.SortOrder.LayoutOrder
+		})
+
+		objects ['content'] = objects ['page']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "content",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			LayoutOrder = 1,
+		})
+
+		objects ['flex'] = objects ['content']:create("UIFlexItem", {
+			Name = "flex",
+			FlexMode = Enum.UIFlexMode.Fill
+		})
+
+		objects ['safezone'] = objects ['content']:create("UIPadding", {
+			PaddingTop = global.dim(0, 3),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 3),
+			PaddingRight = global.dim(0, 3),
+			PaddingLeft = global.dim(0, 3)
+		})
+
+		objects ['list'] = objects ['page']:create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Name = "list",
+			HorizontalFlex = Enum.UIFlexAlignment.Fill,
+			Padding = global.dim(0, 6)
+		})
+
+		info.objects = objects
+
+		info.instances.page = function()
+			local objects = {}
+
+			objects ['holder'] = info.objects ['content']:create("Frame", {
+				BackgroundTransparency = 1,
+				Name = "holder",
+				BorderColor3 = global.rgb(0, 0, 0),
+				Size = global.dim2(1, 0, 1, 0),
+				BorderSizePixel = 0,
+				BackgroundColor3 = global.rgb(255, 255, 255)
+			})
+
+			objects ['flex'] = objects ['holder']:create("UIFlexItem", {
+				Name = "flex",
+				FlexMode = Enum.UIFlexMode.Fill
+			})
+
+			objects ['list'] = objects ['holder']:create("UIListLayout", {
+				FillDirection = Enum.FillDirection.Horizontal,
+				Name = "list",
+				HorizontalFlex = Enum.UIFlexAlignment.Fill,
+				Padding = global.dim(0, 5),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+				VerticalFlex = Enum.UIFlexAlignment.Fill
+			})
+
+			objects ['safezone'] = objects ['holder']:create("UIPadding", {
+				PaddingBottom = global.dim(0, 1),
+				PaddingTop = global.dim(0, 1),
+				Name = "safezone"
+			})
+
+			return objects
+		end
+	end
+
+	info.functions.hover = function(bool)
+		if info.hovered == bool then return end
+		info.hovered = global.declare(not info.hovered, bool)
+
+		objects ['disable']:tween{duration = 0.1, goal = {BackgroundColor3 = info.hovered and global.rgb(20, 20, 20) or global.rgb(15, 15, 15)}}
+	end
+
+	info.functions.active = function(bool)
+		if bool == info.active then return end
+
+		info.active = global.declare(not info.active, bool)
+
+		objects ['page'].Visible = info.active
+
+		objects ['button']:tween{duration = 0.1, goal = {BackgroundTransparency = info.active and 0 or 1}}
+		objects ['accent']:tween{duration = 0.1, goal = {BackgroundTransparency = info.active and 0 or 1}}
+	end
+
+	info.functions.default = function()
+		for _, page in self.pages do
+			page:set("active", page == info)
+		end
+	end
+
+	objects ['holder'] = info.instances.page().holder
+
+	objects ['button']:connect("InputBegan", function(input)
+		if input.UserInputType.Name ~= "MouseButton1" then return end
+
+		info:set("default")
+	end)
+
+	objects ['button']:connect("MouseEnter", function()
+		if info.hovered then return end
+
+		info:set("hover", true)
+	end)
+
+	objects ['button']:connect("MouseLeave", function()
+		if not info.hovered then return end
+
+		info:set("hover", false)
+	end)
+
+	global.insert(self.pages, info)
+	return info
+end
+
+-- Page > Subpage
+library.subpage = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.title = info.title or "subpage"
+
+	info.active = self.subpages == nil
+	info.hovered = false
+	info.functions = {}
+
+	self.subpages = self.subpages or {}
+	if self.objects ['holder'] then
+		self.objects ['subbuttons'].Visible = true
+		self.objects ['holder']:clean()
+	end
+
+	assert(self.objects ['subbuttons'])
+
+	local objects = {} do
+		objects ['subbutton'] = self.objects ['subbuttons']:create("TextButton", {
+			FontFace = library.mainfont,
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			Name = "subbutton",
+			Size = global.dim2(0, 0, 1, 0),
+			BorderSizePixel = 0,
+			TextSize = 9,
+			AutoButtonColor = false,
+			BackgroundColor3 = global.rgb(25, 25, 25)
+		})
+
+		objects ['label'] = objects ['subbutton']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			BackgroundTransparency = 1,
+			Name = "label",
+			Size = global.dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['safezone'] = objects ['label']:create("UIPadding", {
+			PaddingTop = global.dim(0, 8),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 10),
+			PaddingLeft = global.dim(0, 10)
+		})
+
+		objects ['fade'] = objects ['subbutton']:create("UIGradient", {
+			Rotation = 90,
+			Name = "fade",
+			Color = global.rgbseq{global.rgbkey(0, global.rgb(255, 255, 255)), global.rgbkey(0.689, global.rgb(166, 166, 166)), global.rgbkey(1, global.rgb(150, 150, 150))}
+		})
+
+		objects ['border'] = objects ['subbutton']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['accent'] = objects ['subbutton']:create("Frame", {
+			Name = "accent",
+			Position = global.dim2(0, 0, 1, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 0, 0, 1),
+			BorderSizePixel = 0,
+			BackgroundColor3 = library.accent,
+			BackgroundTransparency = info.active and 0 or 1
+		})
+
+		objects ['holder'] = self.instances.page().holder
+		objects ['holder'].Visible = info.active
+		info.objects = objects
+	end
+
+	info.functions.hover = function(bool)
+		if info.hovered == bool then return end
+
+		info.hovered = global.declare(not info.hovered, bool)
+
+		objects ['subbutton']:tween{duration = 0.1, goal = {BackgroundColor3 = info.hovered and global.rgb(35, 35, 35) or global.rgb(25, 25, 25)}}
+	end
+
+	info.functions.active = function(bool)
+		if info.active == bool then return end
+
+		info.active = global.declare(not info.active, bool)
+
+		objects ['holder'].Visible = info.active
+		objects ['accent']:tween{duration = 0.1, goal = {BackgroundTransparency = info.active and 0 or 1}}
+	end
+
+	info.functions.default = function()
+		for _, page in self.subpages do
+			page:set("active", page == info)
+		end
+	end
+
+	objects ['subbutton']:connect("InputBegan", function(input)
+		if input.UserInputType.Name ~= "MouseButton1" then return end
+
+		info:set("default")
+	end)
+
+	objects ['subbutton']:connect("MouseEnter", function()
+		if info.hovered then return end
+
+		info:set("hover", true)
+	end)
+
+	objects ['subbutton']:connect("MouseLeave", function()
+		if not info.hovered then return end
+
+		info:set("hover", false)
+	end)
+
+	global.insert(self.subpages, info)
+	return info
+end
+
+-- Page OR Subpage > Column
+library.column = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.sections = {}
+
+	self.columns = self.columns or {}
+
+	assert(self.objects ['holder'])
+
+	local objects = {} do
+		objects ['column'] = self.objects ['holder']:create("Frame", {
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			BorderColor3 = global.rgb(0, 0, 0),
+			Name = "column",
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['content'] = objects ['column']:create("ScrollingFrame", {
+			Active = true,
+			AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			ScrollingDirection = Enum.ScrollingDirection.Y,
+			BorderSizePixel = 0,
+			CanvasSize = global.dim2(0, 0, 0, 0),
+			ScrollBarImageColor3 = global.rgb(36, 36, 36),
+			MidImage = "rbxassetid://3337834830",
+			BorderColor3 = global.rgb(0, 0, 0),
+			ScrollBarThickness = 2,
+			VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar,
+			BackgroundTransparency = 1,
+			Name = "content",
+			Size = global.dim2(1, 0, 1, 0),
+			BottomImage = "rbxassetid://3337834830",
+			TopImage = "rbxassetid://3337834830",
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['list'] = objects ['content']:create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Name = "list",
+			HorizontalFlex = Enum.UIFlexAlignment.Fill,
+			Padding = global.dim(0, 11)
+		})
+
+		objects ['safezone'] = objects ['content']:create("UIPadding", {
+			PaddingTop = global.dim(0, 2),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 2),
+			PaddingRight = global.dim(0, 3),
+			PaddingLeft = global.dim(0, 3)
+		})
+
+		info.objects = objects
+	end
+
+	global.insert(self.columns, info)
+	return info
+end
+
+-- Column > Section
+library.section = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.title = info.title or "Section"
+	info.order = info.order or #self.sections + 1
+	info.visible = global.declare(true, info.visible)
+
+	info.elements = {}
+	info.functions = {}
+
+	assert(self.objects ['content'])
+
+	local objects = {} do
+		objects ['section'] = self.objects ['content']:create("Frame", {
+			Name = "section",
+			Size = global.dim2(1, 0, 0, 10),
+			BorderColor3 = global.rgb(30, 30, 30),
+			BorderSizePixel = 2,
+			AutomaticSize = Enum.AutomaticSize.Y,
+			LayoutOrder = info.order,
+			BackgroundColor3 = global.rgb(18, 18, 18),
+			Visible = info.visible
+		})
+
+		objects ['border'] = objects ['section']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['label'] = objects ['section']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			BorderSizePixel = 0,
+			Size = global.dim2(0, 0, 0, 5),
+			Rotation = 0.0000000000001,
+			Position = global.dim2(0, 12, 0, -5),
+			Name = "label",
+			TextXAlignment = Enum.TextXAlignment.Left,
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['safezone'] = objects ['label']:create("UIPadding", {
+			PaddingTop = global.dim(0, 10),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1)
+		})
+
+		objects ['content'] = objects ['section']:create("Frame", {
+			Name = "content",
+			BackgroundTransparency = 1,
+			Size = global.dim2(1, 0, 0, 10),
+			BorderColor3 = global.rgb(30, 30, 30),
+			BorderSizePixel = 2,
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['safezone'] = objects ['content']:create("UIPadding", {
+			PaddingTop = global.dim(0, 9),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 3),
+			PaddingRight = global.dim(0, 12),
+			PaddingLeft = global.dim(0, 9)
+		})
+
+		objects ['list'] = objects ['content']:create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Name = "list",
+			HorizontalFlex = Enum.UIFlexAlignment.Fill,
+			Padding = global.dim(0, 2)
+		})
+
+		info.objects = objects
+	end
+
+	info.functions.visible = function(bool)
+		if info.visible == bool then return end
+
+		info.visible = global.declare(not info.visible, bool)
+
+		objects ['section'].Visible = info.visible
+	end
+
+	global.insert(self.sections, info)
+	return info
+end
+
+-- Section > Toggle
+library.toggle = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.title = info.title or "Toggle"
+	info.enabled = info.enabled or false
+	info.order = info.order or #self.elements + 1
+	info.flag = library.next(info.flag or "Toggle")
+	info.pointer = info.pointer or info.flag
+	info.config = global.declare(true, info.config)
+	info.callback = info.callback or function() end
+	info.visible = global.declare(true, info.visible)
+
+	info.is = "toggle"
+
+	info.keybinds = {}
+	info.elements = {}
+	info.connected = {}
+	info.functions = {}
+
+	info.listener = function(...)
+		for _, func in info.connected do
+			global.thread(func)(...)
+		end
+	end
+
+	assert(self.objects ['content'])
+
+	local objects = {} do
+		objects ['element'] = self.objects ['content']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "element",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(0, 100, 0, 12),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			LayoutOrder = info.order,
+			Visible = info.visible
+		})
+
+		objects ['accent'] = objects ['element']:create("Frame", {
+			Name = "accent",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(0, 8, 0, 8),
+			BorderSizePixel = 0,
+			BackgroundColor3 = library.accent,
+			BackgroundTransparency = info.enabled and 0 or 1
+		})
+
+		objects ['border'] = objects ['accent']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['label'] = objects ['element']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(250, 250, 250),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Name = "label",
+			Size = global.dim2(0, 0, 1, 0),
+			Position = global.dim2(0, 14, 0, 0),
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18),
+			TextTransparency = info.enabled and 0 or 1
+		})
+
+		objects ['safezone'] = objects ['label']:create("UIPadding", {
+			PaddingTop = global.dim(0, 5),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1)
+		})
+
+		objects ['inactive'] = objects ['element']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Name = "inactive",
+			Size = global.dim2(0, 0, 1, 0),
+			Position = global.dim2(0, 14, 0, 0),
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18),
+			TextTransparency = info.enabled and 1 or 0
+		})
+
+		objects ['safezone'] = objects ['inactive']:create("UIPadding", {
+			PaddingTop = global.dim(0, 5),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1)
+		})
+
+		objects ['hitbox'] = objects ['element']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			AutoButtonColor = false,
+			BackgroundTransparency = 1,
+			Name = "hitbox",
+			Size = global.dim2(1, 0, 1, 0),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['container'] = objects ['element']:create("Frame", {
+			BorderColor3 = global.rgb(0, 0, 0),
+			AnchorPoint = global.vec2(1, 0),
+			Name = "container",
+			BackgroundTransparency = 1,
+			Position = global.dim2(1, 0, 0, -1),
+			Size = global.dim2(0, 0, 1, 0),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['list'] = objects ['container']:create("UIListLayout", {
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Right,
+			Padding = global.dim(0, 10),
+			Name = "list",
+			SortOrder = Enum.SortOrder.LayoutOrder
+		})
+
+		info.objects = objects
+	end
+
+	info.functions.visible = function(bool)
+		if info.visible == bool then return end
+
+		info.visible = global.declare(not info.visible, bool)
+
+		objects ['element'].Visible = info.visible
+	end
+
+	info.functions.key = global.thread(function()
+		for _, keybind in info.keybinds do
+			keybind:set("active")
+		end
+	end)
+
+	info.functions.default = function(bool)
+		info.enabled = global.declare(not info.enabled, bool)
+
+		objects ['label']:tween{duration = 0.1, goal = {TextTransparency = info.enabled and 0 or 1}}
+		objects ['inactive']:tween{duration = 0.1, goal = {TextTransparency = info.enabled and 1 or 0}}
+		objects ['accent']:tween{duration = 0.1, goal = {BackgroundTransparency = info.enabled and 0 or 1}}
+
+		global.valset(library.flags, info.flag, info.enabled)
+		global.valset(library.pointers, info.pointer, info)
+
+		global.thread(info.callback)(info.enabled)
+		global.thread(info.listener)(info.enabled)
+
+		info:set("key")
+	end
+
+	objects ['hitbox']:connect("InputBegan", function(input)
+		if input.UserInputType.Name ~= "MouseButton1" then return end
+
+		info:set("default")
+	end)
+
+	-- global.valset(library.configs, info.flag, info.config)
+	global.valset(library.flags, info.flag, info.enabled)
+	global.valset(library.pointers, info.pointer, info)
+
+	global.insert(self.elements, info)
+
+	return info
+end
+
+-- Section OR Toggle > Keybind
+library.keybind = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.ignore = info.ignore or false
+	info.title = info.title or "Keybind"
+	info.names = info.names or info.title
+	info.order = info.order or #self.elements + 1
+	info.callback = info.callback or function() end
+	info.config = global.declare(true, info.config)
+	info.visible = global.declare(true, info.visible)
+	info.default = info.default or Enum.KeyCode.Unknown
+	info.flag = library.next(info.flag or "Keybind")
+	info.pointer = info.pointer or info.flag
+	info.modes = info.modes or {"Always", "Hold", "Released", "Toggle"}
+	info.mode = #info.modes > 0 and global.lower(info.mode or info.modes[1])
+
+	info.is = "keybind"
+
+	info.old = info.value
+	info.str = library.bindstr[info.default.Name]
+	info.activekeys = library.activekeys and library.activekeys.contents
+	info.popuphovered = false
+	info.hovered = false
+	info.active = false
+	info.opened = false
+	info.binding = false
+	info.connected = {}
+	info.functions = {}
+	info.parent = assert(self.objects ['content'] or self.objects ['container'])
+
+	info.listener = function(...)
+		for _, func in info.connected do
+			global.thread(func)(...)
+		end
+	end
+
+	local objects = {} do
+		objects ['element'] = info.parent:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "element",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(0, 100, 0, 12),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			LayoutOrder = info.order,
+			Visible = info.visible
+		})
+
+		objects ['label'] = self.objects ['content'] and objects ['element']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Name = "label",
+			Size = global.dim2(0, 0, 1, 0),
+			Position = global.dim2(0, 14, 0, 0),
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['safezone'] = self.objects ['content'] and objects ['label']:create("UIPadding", {
+			PaddingTop = global.dim(0, 5),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1)
+		})
+
+		objects ['content'] = objects ['element']:create("Frame", {
+			BorderColor3 = global.rgb(0, 0, 0),
+			AnchorPoint = global.vec2(1, 0),
+			Name = "content",
+			BackgroundTransparency = 1,
+			Position = global.dim2(1, 0, 0, -1),
+			Size = global.dim2(0, 0, 1, 0),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['keybind'] = objects ['content']:create("TextButton", {
+			FontFace = library.secondaryfont,
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextColor3 = global.rgb(80, 80, 80),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.str,
+			Name = "keybind",
+			Size = global.dim2(0, 15, 0, 5),
+			BorderSizePixel = 2,
+			TextSize = 9,
+			AutoButtonColor = false,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['border'] = objects ['keybind']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border",
+			Color = global.rgb(30, 30, 30)
+		})
+
+		objects ['safezone'] = objects ['keybind']:create("UIPadding", {
+			PaddingTop = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1),
+			Name = "safezone"
+		})
+
+		objects ['list'] = objects ['content']:create("UIListLayout", {
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Right,
+			Padding = global.dim(0, 10),
+			Name = "list",
+			SortOrder = Enum.SortOrder.LayoutOrder
+		})
+
+		objects ['modes'] = objects ['element']:create("Frame", {
+			BorderColor3 = global.rgb(0, 0, 0),
+			Rotation = 0.0000000000001,
+			Name = "modes",
+			Position = global.dim2(1, -16, 0, 12),
+			Size = global.dim2(0, 100, 1, 0),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.XY,
+			BackgroundColor3 = global.rgb(18, 18, 18),
+			Visible = info.opened,
+			ZIndex = 15
+		})
+
+		objects ['list'] = objects ['modes']:create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			HorizontalAlignment = Enum.HorizontalAlignment.Right,
+			Name = "list"
+		})
+
+		objects ['border'] = objects ['modes']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['safezone'] = objects ['modes']:create("UIPadding", {
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 3),
+			PaddingRight = global.dim(0, 5),
+			PaddingLeft = global.dim(0, 5)
+		})
+
+		if #info.modes > 0 then
+			for _, mode in info.modes do
+				objects [global.lower(mode)] = objects ['modes']:create("TextButton", {
+					FontFace = library.primaryfont,
+					TextColor3 = global.rgb(200, 200, 200),
+					TextTransparency = global.lower(mode) == global.lower(info.mode) and 1 or 0,
+					Text = mode,
+					Name = "button",
+					AutoButtonColor = false,
+					BorderColor3 = global.rgb(0, 0, 0),
+					Size = global.dim2(1, 0, 0, 15),
+					BackgroundTransparency = 1,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					BorderSizePixel = 0,
+					ZIndex = 17,
+					TextSize = 9,
+				})
+
+				objects [global.lower(mode) .. '_accent'] = objects [global.lower(mode)]:create("TextLabel", {
+					FontFace = library.boldfont,
+					TextColor3 = global.rgb(255, 139, 62),
+					BorderColor3 = global.rgb(0, 0, 0),
+					TextTransparency = global.lower(mode) == global.lower(info.mode) and 0 or 1,
+					Text = mode,
+					Name = "accent",
+					AutomaticSize = Enum.AutomaticSize.X,
+					BackgroundTransparency = 1,
+					Size = global.dim2(0, 0, 1, 0),
+					BorderSizePixel = 0,
+					ZIndex = 17,
+					TextSize = 9,
+				})
+
+				objects [global.lower(mode)]:connect("InputBegan", function(input)
+					if input.UserInputType.Name ~= "MouseButton1" then return end
+
+					info:set("mode", mode)
 				end)
 			end
 		end
 
-		local Fade = Assets.Pages.Fade:Clone()
-		Fade.BackgroundTransparency = 1
-		Fade.Visible = true
-		Fade.Parent = Background.Pages
-
-		tweenFadeAndPage(Fade, 0, 1, 14)
-
-		task.delay(0.2, function()
-			tweenFadeAndPage(Fade, 1, 0, 0)
-			task.wait(0.2)
-			Fade:Destroy()
-		end)
+		global.insert(library.popups, {input = objects ['keybind'], target = objects ['modes']})
+		info.objects = objects
 	end
+
+	info.functions.visible = function(bool)
+		if info.visible == bool then return end
+
+		info.visible = global.declare(not info.visible, bool)
+
+		objects ['section'].Visible = info.visible
+	end
+
+	info.functions.hover = function(bool)
+		if info.hovered == bool then return end
+		info.hovered = global.declare(not info.hovered, bool)
+
+		objects ['keybind']:tween{duration = 0.1, goal = {BackgroundColor3 = info.hovered and global.rgb(28, 28, 28) or global.rgb(18, 18, 18)}}
+	end
+
+	info.functions.popopen = #info.modes > 0 and function()
+		if info.popuphovered or info.hovered or not info.opened then return end
+
+		info:set("open", false)
+	end
+
+	info.functions.open = #info.modes > 0 and function(bool)
+		info.opened = global.declare(not info.opened, bool)
+
+		objects ['modes'].Visible = info.opened
+	end
+
+	info.functions.mode = #info.modes > 0 and function(str)
+		info.mode = str or info.mode
+
+		if global.tfind({"released", "always"}, global.lower(info.mode)) then
+			info:set("active", true)
+		end
+
+		if global.lower(info.mode) == "hold" then
+			info:set("active", false)
+		end
+
+		if global.lower(info.mode) == "toggle" then
+			info:set("active", info.active)
+		end
+
+		for _, mode in info.modes do
+			local bool = global.lower(info.mode) == global.lower(mode)
+
+			objects [global.lower(mode) .. "_accent"]:tween{duration = 0.1, goal = {TextTransparency = bool and 0 or 1}}
+			objects [global.lower(mode)]:tween{duration = 0.1, goal = {TextTransparency = bool and 1 or 0}}
+		end
+	end
+
+	info.functions.bind = function(bool)
+		info.binding = bool
+
+		objects ['keybind'].Text = info.binding and "..." or info.str
+	end
+
+	info.functions.key = function(str)
+		str = global.is(str) == "string" and (global.search(library.bindstr, str)) or str or info.default
+		str = global.is(str) == "string" and (Enum.KeyCode[str] or Enum.UserInputType[str]) or str or info.default
+
+		str = global.tfind({"Return", "Backspace"}, str.Name) and Enum.KeyCode.Unknown or str
 		
-	local Context = Utility:validateContext({
-		Page = {Value = Page, ExpectedType = "Instance"},
-		Pages = {Value = Background.Pages, ExpectedType = "Instance"},
-		Popups = {Value = Popups, ExpectedType = "Instance"},
-		ScrollingFrame = {Value = Background.Tabs.Frame.ScrollingFrame, ExpectedType = "Instance"},
-		animation = {Value = fadeAnimation, ExpectedType = "function"},
+		if info.old == str then return end
 
-		tweenTabOn = {Value = function()
-			tweenTabAssets(Tab, Icon, TextButton, Theme.PrimaryColor, Theme.TabBackgroundColor, 0, 0, 0)
-		end, ExpectedType = "function"},
+		info.default = str
+		info.old = info.default
+		info.str = library.bindstr[info.default.Name] or info.default.Name
 
-		tweenTabsOff = {Value = function(tab)
-			tweenTabAssets(tab, tab.ImageButton.Icon, tab.ImageButton.TextButton, Theme.SecondaryTextColor, Theme.TabBackgroundColor, 1, 0, 0)
-		end, ExpectedType = "function"},
+		info:set("active", info.active)
 
-		hoverOn = {Value = function()
-			tweenTabAssets(Tab, Icon, TextButton, Theme.PrimaryColor, Theme.TabBackgroundColor, 0.16, 0.3, 0.3)
-		end, ExpectedType = "function"},
-
-		hoverOff = {Value = function()
-			tweenTabAssets(Tab, Icon, TextButton, Theme.SecondaryTextColor, Theme.TabBackgroundColor, 1, 0, 0)
-		end, ExpectedType = "function"},
-	})
-
-	local Navigation = Modules.Navigation.new(Context)
-
-	-- this is stupid but anyways!!!
-	if not self.firstTabDebounce then
-		Navigation:enableFirstTab()
-		self.firstTabDebounce = true
+		objects ['keybind'].Text = info.str
 	end
 
-	ScrollingFrame.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, ScrollingFrame.UIListLayout.AbsoluteContentSize.Y + ScrollingFrame.UIListLayout.Padding.Offset)
+	info.functions.active = function(bool)
+		info.active = global.declare(not info.active, bool)
+
+		global.valset(library.flags, info.flag, {active = info.active, key = info.default, mode = info.mode})
+		global.valset(library.pointers, info.pointer, info)
+
+		global.thread(info.callback)(library.flags[info.flag])
+		global.thread(info.listener)(library.flags[info.flag])
+
+		if info.ignore then return end
+
+		info.activekeys[info.flag] = {
+			title = `{info.names} [{info.str}] [{info.mode}]`,
+			visible = global.declare(info.active, info.active and self.enabled) and global.lower(info.mode) ~= "always", 
+			key = info.flag
+		}
+	end
+
+	info:set("active", info.active)
+
+	-- global.valset(library.configs, info.flag, info.config)
+	global.valset(library.flags, info.flag, info.active)
+	global.valset(library.pointers, info.pointer, info)
+
+	global.insert(self.elements, info)
+	if self.keybinds then
+		global.insert(self.keybinds, info)
+	end
+
+	objects ['keybind']:connect("InputEnded", function(input)
+		if input.UserInputType.Name ~= "MouseButton1" then return end
+
+		info:set("bind", true)
 	end)
 
-	ImageButton.MouseButton1Down:Connect(Navigation:selectTab())
-	Icon.MouseButton1Down:Connect(Navigation:selectTab())
-	TextButton.MouseButton1Down:Connect(Navigation:selectTab())
-	ImageButton.MouseEnter:Connect(Navigation:hoverEffect(true))
-	ImageButton.MouseLeave:Connect(Navigation:hoverEffect(false))
-	
-	Theme:registerToObjects({
-		{object = Tab, property = "BackgroundColor3", theme = {"TabBackgroundColor"}},
-		{object = Title, property = "TextColor3", theme = {"PrimaryColor"}},
-		{object = Icon, property = "ImageColor3", theme = {"SecondaryTextColor", "PrimaryColor"}},
-		{object = TextButton, property = "TextColor3", theme = {"SecondaryTextColor", "PrimaryColor"}},
-		{object = Frame, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
-		{object = SubTabs, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
-		{object = PageLine, property = "BackgroundColor3", theme = {"Line"}},
-		{object = SubLine, property = "BackgroundColor3", theme = {"Line"}},
-		{object = CurrentTabLabel, property = "TextColor3", theme = {"PrimaryTextColor"}},
-	}, "Tab")
+	objects ['keybind']:connect("MouseEnter", function()
+		if info.hovered then return end
 
-	local PassingContext = setmetatable({Page = Page}, Library)
-	return PassingContext
-end
-
-function Library:createSubTab(options: table)
-	-- Use provided options, or fall back to defaults if not provided	
-	Utility:validateOptions(options, {
-		sectionStyle = {Default = "Double", ExpectedType = "string"},
-		text = {Default = "SubTab", ExpectedType = "string"},
-	})
-
-	local Moveable = self.Page.SubTabs.Frame.Moveable
-	local Underline, ScrollingFrame = Moveable.Underline, Moveable.Parent.ScrollingFrame
-
-	local SubPage = Assets.Pages.SubPage:Clone()
-	SubPage.Parent = self.Page
-
-	local Left, Right = SubPage.ScrollingFrame.Left, SubPage.ScrollingFrame.Right
-
-	local SubTab = Assets.Pages.SubTab:Clone()
-	SubTab.Visible = true
-	SubTab.Text = options.text
-	SubTab.TextColor3 = Theme.SecondaryTextColor
-	SubTab.Parent = ScrollingFrame
-
-	local TextService = game:GetService("TextService")
-	SubTab.Size = UDim2.new(0, TextService:GetTextSize(options.text, 15, Enum.Font.MontserratMedium, SubTab.AbsoluteSize).X, 1, 0)
-
-	-- Calculate subTab position to position underline
-	local subTabIndex, subTabPosition = 0, 0
-
-	for index, subTab in ipairs(ScrollingFrame:GetChildren()) do
-		if subTab.Name ~= "SubTab" then
-			continue
-		end
-
-		subTabIndex += 1
-
-		if subTabIndex == 1 then
-			subTabPosition = 0
-		else				
-			local condition, object = Utility:lookBeforeChildOfObject(index, ScrollingFrame, "SubTab")
-			subTabPosition += subTab.Size.X.Offset + ScrollingFrame.UIListLayout.Padding.Offset
-
-			if condition then
-				subTabPosition -= (subTab.Size.X.Offset - object.Size.X.Offset)
-			end		
-		end
-	end
-
-	local function tweenSubTabAssets(subTab, underline, textColor, textTransparency: number, disableUnderlineTween: boolean)
-		Utility:tween(subTab, {TextColor3 = textColor, TextTransparency = textTransparency}, 0.2):Play()
-
-		if not disableUnderlineTween then
-			Utility:tween(underline, {BackgroundColor3 = Theme.PrimaryColor, Position = UDim2.new(0, subTabPosition, 1, 0), Size = UDim2.new(0, subTab.Size.X.Offset, 0, 2)}, 0.2):Play()
-		end
-	end
-
-	local function autoCanvasSizeSubPageScrollingFrame()
-		local max = math.max(Left.UIListLayout.AbsoluteContentSize.Y, Right.UIListLayout.AbsoluteContentSize.Y)
-		SubPage.ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, max)
-	end
-
-	local function updateSectionAnimation()
-		Utility:tween(SubPage.ScrollingFrame.UIPadding, {PaddingTop = UDim.new(0, 10)}, 0.2):Play()
-
-		task.delay(0.2, function()
-			Utility:tween(SubPage.ScrollingFrame.UIPadding, {PaddingTop = UDim.new(0, 0)}, 0.2):Play()
-		end)
-	end
-
-	local Context = Utility:validateContext({
-		Page = {Value = SubPage, ExpectedType = "Instance"},
-		Pages = {Value = self.Page, ExpectedType = "Instance"},
-		Popups = {Value = Popups, ExpectedType = "Instance"},
-		ScrollingFrame = {Value = ScrollingFrame, ExpectedType = "Instance"},
-		animation = {Value = updateSectionAnimation, ExpectedType = "function"},
-
-		tweenTabOn = {Value = function()
-			tweenSubTabAssets(SubTab, Underline, Theme.PrimaryColor, 0, false)
-		end, ExpectedType = "function"},
-
-		tweenTabsOff = {Value = function(subTab)
-			tweenSubTabAssets(subTab, Underline, Theme.SecondaryTextColor, 0, true)
-		end, ExpectedType = "function"},
-
-		hoverOn = {Value = function()
-			tweenSubTabAssets(SubTab, Underline, Theme.PrimaryColor, 0.3, true)
-		end, ExpectedType = "function"},
-
-		hoverOff = {Value = function()
-			tweenSubTabAssets(SubTab, Underline, Theme.SecondaryTextColor, 0, true)
-		end, ExpectedType = "function"},
-	})
-
-	local Navigation = Modules.Navigation.new(Context)
-
-	if not self.firstSubTabDebounce then
-		Navigation:enableFirstTab()
-		self.firstSubTabDebounce = true
-	end
-
-	Left.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(autoCanvasSizeSubPageScrollingFrame)
-	Right.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(autoCanvasSizeSubPageScrollingFrame)
-
-	SubTab.MouseButton1Down:Connect(Navigation:selectTab())
-	SubTab.MouseEnter:Connect(Navigation:hoverEffect(true))
-	SubTab.MouseLeave:Connect(Navigation:hoverEffect(false))
-	
-	Theme:registerToObjects({
-		{object = Underline, property = "BackgroundColor3", theme = {"PrimaryColor"}},
-		{object = SubTab, property = "TextColor3", theme = {"SecondaryTextColor", "PrimaryColor"}},
-		{object = SubPage.ScrollingFrame, property = "ScrollBarImageColor3", theme = {"ScrollingBarImageColor"}}
-	}, "SubTab")
-
-	local PassingContext = setmetatable({Left = Left, Right = Right, sectionStyle = options.sectionStyle}, Library)
-	return PassingContext
-end
-
-function Library:createSection(options: table)
-	Utility:validateOptions(options, {
-		text = {Default = "Section", ExpectedType = "string"},
-		position = {Default = "Left", ExpectedType = "string"},
-	})
-		
-	local Section = Assets.Pages.Section:Clone()
-	Section.Visible = true
-	Section.Parent = self[options.position]
-
-	-- Change section style 
-	local screenSize = workspace.CurrentCamera.ViewportSize
-	if self.sectionStyle == "Single" or (screenSize.X <= 740 and screenSize.Y <= 590) or self.sizeX <= 660 then
-		if (options.position == "Right") then
-			table.insert(self.SectionFolder.Right, {folders = {Left = self.Left, Right = self.Right}, object = Section})
-		end
-		
-		self.Right.Visible = false
-		self.Left.Size = UDim2.fromScale(1, 1)
-		Section.Parent = self.Left
-	end
-
-	-- Store objects to change section style depending on the size of the UI
-	if (options.position == "Right" and self.sectionStyle ~= "Single") then
-		table.insert(self.SectionFolder.Right, {folders = {Left = self.Left, Right = self.Right}, object = Section})
-	end
-
-	if (options.position == "Left" and self.sectionStyle ~= "Single") then
-		table.insert(self.SectionFolder.Left, {folders = {Left = self.Left, Right = self.Right}, object = Section})
-	end
-	
-	local Inner = Section.Inner
-
-	local TextLabel = Inner.TextLabel
-	TextLabel.Text = options.text
-
-	-- Auto size section
-	Section.Inner.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		Section.Size = UDim2.new(1, 0, 0, Section.Inner.UIListLayout.AbsoluteContentSize.Y + 28)
+		info:set("hover", true)
 	end)
-	
-	Theme:registerToObjects({
-		{object = Section, property = "BackgroundColor3", theme = {"Line"}},
-		{object = Inner, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
-		{object = TextLabel, property = "TextColor3", theme = {"PrimaryTextColor"}},
-	})
 
-	local PassingContext = setmetatable({Section = Inner, ScrollingFrame = Section.Parent.Parent}, Library)
-	return PassingContext
-end
+	objects ['keybind']:connect("MouseLeave", function()
+		if not info.hovered then return end
 
-function Library:createToggle(options: table, parent, scrollingFrame)
-	Utility:validateOptions(options, {
-		text = {Default = "Toggle", ExpectedType = "string"},
-		state = {Default = false, ExpectedType = "boolean"},
-		callback = {Default = function() end, ExpectedType = "function"}
-	})
+		info:set("hover", false)
+	end)
 
-	scrollingFrame = self.ScrollingFrame or scrollingFrame
+	objects ['modes']:connect("MouseEnter", function()
+		if info.popuphovered then return end
 
-	local Toggle = Assets.Elements.Toggle:Clone()
-	Toggle.Visible = true
-	Toggle.Parent = parent or self.Section
+		info.popuphovered = true
+	end)
 
-	local TextLabel = Toggle.TextLabel
-	TextLabel.Text = options.text
-	
-	local ImageButton = TextLabel.ImageButton
-	local TextButton = TextLabel.TextButton
-	local Background = TextButton.Background
-	local Circle = Background.Circle
+	objects ['modes']:connect("MouseLeave", function()
+		if not info.popuphovered then return end
 
-	local function tweenToggleAssets(backgroundColor: Color3, circleColor: Color3, anchorPoint: Vector2, position: UDim2)
-		Utility:tween(Background, {BackgroundColor3 = backgroundColor}, 0.2):Play()
-		Utility:tween(Circle, {BackgroundColor3 = circleColor, AnchorPoint = anchorPoint, Position = position}, 0.2):Play()
-	end
-	
-	local circleOn = false
+		info.popuphovered = false
+	end)
 
-	local Context = Utility:validateContext({
-		state = {Value = options.state, ExpectedType = "boolean"},
-		callback = {Value = options.callback, ExpectedType = "function"},
+	object:connection(global.userinput.InputBegan, function(input)
+		if #info.modes > 0 then
+			global.call(info.functions.popopen)
+		end
 
-		switchOff = {Value = function()
-			tweenToggleAssets(Theme.SecondaryBackgroundColor, Theme.PrimaryBackgroundColor, Vector2.new(0, 0.5), UDim2.fromScale(0, 0.5), 0.2)
-			circleOn = false
-		end, ExpectedType = "function"},
+		if not global.tfind({"MouseMovement"}, input.UserInputType.Name) and info.binding then 
+			info:set("key", input.UserInputType.Name == "Keyboard" and input.KeyCode or input.UserInputType)
+			info:set("bind", false)
+		end
 
-		switchOn = {Value = function()
-			tweenToggleAssets(Theme.PrimaryColor, Theme.TertiaryBackgroundColor, Vector2.new(1, 0.5), UDim2.fromScale(1, 0.5), 0.2)
-			circleOn = true
-		end, ExpectedType = "function"}
-	})
+		if info.default.Name == "Unknown" or #info.modes < 1 or not global.tfind({input.UserInputType, input.KeyCode}, info.default) then return end
 
-	local Toggle = Modules.Toggle.new(Context)
-	Toggle:updateState({state = options.state})
-	TextButton.MouseButton1Down:Connect(Toggle:switch())
-	
-	Theme:registerToObjects({
-		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = Background, property = "BackgroundColor3", theme = {"PrimaryColor", "SecondaryBackgroundColor"}},
-		{object = Circle, property = "BackgroundColor3", theme = {"TertiaryBackgroundColor", "PrimaryBackgroundColor"}, circleOn = circleOn},
-		{object = ImageButton, property = "ImageColor3", theme = {"SecondaryTextColor"}},
-	})
+		if global.lower(info.mode) == "toggle" then 
+			return info:set("active")
+		end
 
-	shared.Flags.Toggle[options.text] = {
-		getState = function(self)
-			return Context.state
-		end,
+		if global.lower(info.mode) == "hold" then 
+			return info:set("active", true)
+		end
 
-		updateState = function(self, options: table)
-			Toggle:updateState(options)
-		end,
-	}
-
-	return self:createAddons(options.text, ImageButton, scrollingFrame, {
-		getState = function(self)
-			return Context.state
-		end,
-
-		updateState = function(self, options: table)
-			Toggle:updateState(options)
-		end,
-	})
-end
-
-function Library:createSlider(options: table, parent, scrollingFrame)
-	Utility:validateOptions(options, {
-		text = {Default = "Slider", ExpectedType = "string"},
-		min = {Default = 0, ExpectedType = "number"},
-		max = {Default = 100, ExpectedType = "number"},
-		step = {Default = 1, ExpectedType = "number"},
-		callback = {Default = function() end, ExpectedType = "function"}
-	})
-
-	options.default = options.default or options.min
-	options.value = options.default 
-	scrollingFrame = self.ScrollingFrame or scrollingFrame
-
-	local Slider = Assets.Elements.Slider:Clone()
-	Slider.Visible = true
-	Slider.Parent = parent or self.Section
-	
-	local TextLabel = Slider.TextButton.TextLabel
-	local ImageButton = TextLabel.ImageButton
-	local TextBox = TextLabel.TextBox
-
-	local Line = Slider.Line
-	local TextButton = Slider.TextButton
-	local Fill = Line.Fill
-	
-	local TextLabel = TextButton.TextLabel
-	TextLabel.Text = options.text
-	
-	local Circle = Fill.Circle
-	local InnerCircle = Circle.InnerCircle
-	local CurrentValueLabel = Circle.TextButton.CurrentValueLabel
-
-	local function tweenSliderInfoAssets(transparency: number)
-		local TextBoundsX = math.clamp(CurrentValueLabel.TextBounds.X + 14, 10, 200)
-		Utility:tween(CurrentValueLabel, {Size = UDim2.fromOffset(TextBoundsX, 20), BackgroundTransparency = transparency, TextTransparency = transparency}):Play()
-	end
-
-	local Context = Utility:validateContext({
-		min = {Value = options.min, ExpectedType = "number"},
-		max = {Value = options.max, ExpectedType = "number"},
-		step = {Value = options.step, ExpectedType = "number"},
-		value = {Value = options.default, ExpectedType = "number"},
-		callback = {Value = options.callback, ExpectedType = "function"},
-		Line = {Value = Line, ExpectedType = "Instance"},
-		TextBox = {Value = TextLabel.TextBox, ExpectedType = "Instance"},
-		Library = {Value = Library, ExpectedType = "table"},
-		CurrentValueLabel = {Value = CurrentValueLabel, ExpectedType = "Instance"},
-		Connections = {Value = Connections, ExpectedType = "table"},
-
-		autoSizeTextBox = {Value = function()
-			local TextBoundsX = math.clamp(TextLabel.TextBox.TextBounds.X + 14, 10, 200)
-			Utility:tween(TextLabel.TextBox, {Size = UDim2.fromOffset(TextBoundsX, 20)}, 0.2):Play()
-		end, ExpectedType = "function"},
-
-		updateFill = {Value = function(sizeX)
-			Utility:tween(Line.Fill, {Size = UDim2.fromScale(sizeX, 1)}, 0.2):Play()
-		end, ExpectedType = "function"},
-
-		showInfo = {Value = function()
-			tweenSliderInfoAssets(0)
-		end, ExpectedType = "function"},
-
-		dontShowInfo ={Value = function()
-			tweenSliderInfoAssets(1)
-		end, ExpectedType = "function"},
-	})
-
-	local Slider = Modules.Slider.new(Context)
-	Slider:handleSlider()
-	
-	Theme:registerToObjects({
-		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = Line, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-		{object = Fill, property = "BackgroundColor3", theme = {"PrimaryColor"}},
-		{object = Circle, property = "BackgroundColor3", theme = {"PrimaryColor"}},
-		{object = ImageButton, property = "ImageColor3", theme = {"SecondaryTextColor"}},
-		{object = TextBox, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-		{object = TextBox, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = CurrentValueLabel, property = "TextColor3", theme = {"TertiaryBackgroundColor"}},
-		{object = CurrentValueLabel, property = "BackgroundColor3", theme = {"PrimaryColor"}},
-		{object = InnerCircle, property = "BackgroundColor3", theme = {"TertiaryBackgroundColor"}},
-	})
-	
-	Fill.BackgroundColor3 = Theme.PrimaryColor
-	Circle.BackgroundColor3 = Theme.PrimaryColor
-	InnerCircle.BackgroundColor3 = Theme.TertiaryBackgroundColor
-	CurrentValueLabel.BackgroundColor3 = Theme.PrimaryColor
-
-	shared.Flags.Slider[options.text] =  {
-		getValue = function(self)
-			return Context.value
-		end,
-
-		updateValue = function(self, options: table)
-			Slider:updateValue(options)
-		end,
-	}
-
-	return self:createAddons(options.text, ImageButton, scrollingFrame, {
-		getValue = function(self)
-			return Context.value
-		end,
-
-		updateValue = function(self, options: table)
-			Slider:updateValue(options)
-		end,
-	})
-end
-
-function Library:createPicker(options: table, parent, scrollingFrame, isPickerBoolean)
-	Utility:validateOptions(options, {
-		text = {Default = "Picker", ExpectedType = "string"},
-		default = {Default = Color3.fromRGB(255, 0, 0), ExpectedType = "Color3"},
-		color = {Default = Color3.fromRGB(255, 0, 0), ExpectedType = "Color3"},
-		callback = {Default = function() end, ExpectedType = "function"},
-	})
-
-	isPickerBoolean = isPickerBoolean or false
-	options.color = options.default
-	scrollingFrame = self.ScrollingFrame or scrollingFrame
-
-	local Picker = Assets.Elements.Picker:Clone()
-	Picker.Visible = true
-	Picker.Parent = parent or self.Section
-
-	local TextLabel = Picker.TextLabel
-	TextLabel.Text = options.text
-
-	local ImageButton = TextLabel.ImageButton
-	local Background = TextLabel.Background
-	local TextButton = Background.TextButton
-
-	local ColorPicker = Assets.Elements.ColorPicker:Clone()
-	ColorPicker.Parent = Popups
-
-	-- Put transparent objects to not be visible to make cool effect later!!
-	local ColorPickerTransparentObjects = Utility:getTransparentObjects(ColorPicker)
-
-	for _, data in ipairs(ColorPickerTransparentObjects) do
-		data.object[data.property] = 1
-	end
-
-	local Inner = ColorPicker.Inner
-	local HSV = Inner.HSV
-	local Slider = Inner.Slider
-	local Submit = Inner.Submit
-	local Hex = Inner.HexAndRGB.Hex
-	local RGB = Inner.HexAndRGB.RGB
-
-	local PopupContext = Utility:validateContext({
-		Popup = {Value = ColorPicker, ExpectedType = "Instance"},
-		Target = {Value = Background, ExpectedType = "Instance"},
-		Library = {Value = Library, ExpectedType = "table"},
-		TransparentObjects = {Value = ColorPickerTransparentObjects, ExpectedType = "table"},
-		Popups = {Value = Popups, ExpectedType = "Instance"},
-		isPicker = {Value = isPickerBoolean, ExpectedType = "boolean"},
-		ScrollingFrame = {Value = scrollingFrame, ExpectedType = "Instance"},
-		PositionPadding = {Value = 18 + 7, ExpectedType = "number"},
-		Connections = {Value = Connections, ExpectedType = "table"},
-		SizePadding = {Value = 14, ExpectedType = "number"},
-	})
-
-	local Popup = Modules.Popup.new(PopupContext)
-	TextButton.MouseButton1Down:Connect(Popup:togglePopup())
-	Popup:hidePopupOnClickingOutside()
-
-	local ColorPickerContext = Utility:validateContext({
-		ColorPicker = {Value = ColorPicker, ExpectedType = "Instance"},
-		Hex = {Value = Hex, ExpectedType = "Instance"},
-		RGB = {Value = RGB, ExpectedType = "Instance"},
-		Slider = {Value = Slider, ExpectedType = "Instance"},
-		HSV = {Value = HSV, ExpectedType = "Instance"},
-		Submit = {Value = Submit, ExpectedType = "Instance"},
-		Background = {Value = Background, ExpectedType = "Instance"},
-		Connections = {Value = Connections, ExpectedType = "table"},
-		color = {Value = options.color, ExpectedType = "Color3"},
-		callback = {Value = options.callback, ExpectedType = "function"},
-
-		submitAnimation = {Value = function()
-			Utility:tween(Submit.TextLabel, {BackgroundTransparency = 0}, 0.2):Play()
-			Utility:tween(Submit.TextLabel, {TextColor3 = Theme.PrimaryColor, TextTransparency = 0}, 0.2):Play()
-
-			task.delay(0.2, function()
-				Utility:tween(Submit.TextLabel, {TextColor3 = Theme.SecondaryTextColor, TextTransparency = 0}, 0.2):Play()
-				Utility:tween(Submit.TextLabel, {BackgroundTransparency = 0.3}, 0.2):Play()
-			end)
-		end, ExpectedType = "function"},
-		
-		hoveringOn = {Value = function()
-			Utility:tween(Submit.TextLabel, {BackgroundTransparency = 0.3}, 0.2):Play()
-			Utility:tween(Submit.TextLabel, {TextColor3 = Theme.PrimaryColor, TextTransparency = 0.3}, 0.2):Play()
-		end, ExpectedType = "function"},
-		
-		hoveringOff = {Value = function()
-			Utility:tween(Submit.TextLabel, {BackgroundTransparency = 0}, 0.2):Play()
-			Utility:tween(Submit.TextLabel, {TextColor3 = Theme.SecondaryTextColor, TextTransparency = 0}, 0.2):Play()
-		end, ExpectedType = "function"}, 
-	})
-
-	Theme:registerToObjects({
-		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = ColorPicker, property = "BackgroundColor3", theme = {"Line"}},
-		{object = ImageButton, property = "ImageColor3", theme = {"SecondaryTextColor"}},
-		{object = Inner, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
-		{object = Submit, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-		{object = Hex, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-		{object = RGB, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-		{object = Submit.TextLabel, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}}
-	})
-
-	local ColorPicker = Modules.ColorPicker.new(ColorPickerContext)
-	ColorPicker:handleColorPicker()
-
-	shared.Flags.ColorPicker[options.text] = {
-		getColor = function(self)
-			return ColorPickerContext.color
-		end,
-
-		updateColor = function(self, options: table)
-			ColorPicker:updateColor(options)
-		end,
-	}
-
-	return self:createAddons(options.text, ImageButton, scrollingFrame, {
-		getColor = function(self)
-			return ColorPickerContext.color
-		end,
-
-		updateColor = function(self, options: table)
-			ColorPicker:updateColor(options)
-		end,
-	})
-end
-
-function Library:createDropdown(options: table, parent, scrollingFrame)
-	Utility:validateOptions(options, {
-		text = {Default = "Dropdown", ExpectedType = "string"},
-		list = {Default = {"Option 1", "Option 2"}, ExpectedType = "table"},
-		default = {Default = {}, ExpectedType = "table"},
-		multiple = {Default = false, ExpectedType = "boolean"},
-		callback = {Default = function() end, ExpectedType = "function"},
-	})
-
-	scrollingFrame = self.ScrollingFrame or scrollingFrame
-
-	local Dropdown = Assets.Elements.Dropdown:Clone()
-	Dropdown.Visible = true
-	Dropdown.Parent = parent or self.Section
-	
-	local TextLabel = Dropdown.TextLabel
-	TextLabel.Text = options.text
-	
-	local ImageButton = TextLabel.ImageButton
-	local Box = Dropdown.Box
-	
-	local TextButton = Box.TextButton
-	TextButton.Text = table.concat(options.default, ", ")
-
-	if options.default[1] == nil then
-		TextButton.Text = "None"
-	end
-
-	local List = Dropdown.List
-	local Inner = List.Inner
-	local DropButtons = Inner.ScrollingFrame
-	local Search = Inner.TextBox
-
-	-- Auto size ScrollingFrame and List
-	DropButtons.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		DropButtons.CanvasSize = UDim2.new(0, 0, 0, DropButtons.UIListLayout.AbsoluteContentSize.Y + Inner.UIListLayout.Padding.Offset)
-		DropButtons.Size = UDim2.new(1, 0, 0, math.clamp(DropButtons.UIListLayout.AbsoluteContentSize.Y + Inner.UIListLayout.Padding.Offset, 0, 164))
-
-		if List.Size.Y.Offset > 0 then
-			Utility:tween(List, {Size = UDim2.new(1, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))}, 0.2):Play()
-			
-			for index, value in ipairs(self.DropdownSizes) do
-				scrollingFrame.CanvasSize = scrollingFrame.CanvasSize - value.size
-				scrollingFrame.CanvasSize = scrollingFrame.CanvasSize + UDim2.new(0, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))
-				table.remove(Library.DropdownSizes, index)
-				table.insert(Library.DropdownSizes, {object = Dropdown, size = UDim2.new(0, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))})
-			end
+		if global.lower(info.mode) == "released" then 
+			info:set("active", false)
 		end
 	end)
 
-	-- As long we don't spam it were good i guess when changing canvassize when tweened but let's not do that
-	local function toggleList()
-		if List.Size.Y.Offset <= 0 then
-			for index, value in ipairs(Library.DropdownSizes) do
-				if value.object ~= Dropdown then
-					scrollingFrame.CanvasSize = scrollingFrame.CanvasSize - value.size
-					table.remove(Library.DropdownSizes, index)
-				end
-			end
+	if #info.modes < 1 then return info end
 
-			-- Hide current open dropdowns and make sure enabled dropdown is on top
-			for _, object in ipairs(scrollingFrame:GetDescendants()) do
-				if object.Name == "Section" then
-					object.ZIndex = 1
-				end
+	objects ['keybind']:connect("InputBegan", function(input)
+		if input.UserInputType.Name ~= "MouseButton2" then return end
 
-				if object.Name == "List" and object ~= List then
-					object.Parent.ZIndex = 1
-					Utility:tween(object, {Size = UDim2.new(1, 0, 0, 0)}, 0.2):Play()
-				end
-			end
+		info:set("open")
+	end)
 
-			for _, object in ipairs(Popups:GetDescendants()) do
-				if object.Name == "List" and object ~= List then
-					object.Parent.ZIndex = 1
-					Utility:tween(object, {Size = UDim2.new(1, 0, 0, 0)}, 0.2):Play()
-				end
-			end
+	object:connection(global.userinput.InputEnded, function(input)
+		if info.default.Name == "Unknown" or not global.tfind({input.UserInputType, input.KeyCode}, info.default) then return end
 
-			Dropdown.ZIndex = 2
-			
-			if self.Section then
-				self.Section.Parent.ZIndex = 2
-			end
-			
-			Utility:tween(List, {Size = UDim2.new(1, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))}, 0.2):Play()
-			table.insert(Library.DropdownSizes, {object = Dropdown, size = UDim2.new(0, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))})
+		if global.lower(info.mode) == "hold" then 
+			info:set("active", false)
+		end
 
-			scrollingFrame.CanvasSize = scrollingFrame.CanvasSize + UDim2.new(0, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))
-		else
-			Utility:tween(List, {Size = UDim2.new(1, 0, 0, 0)}, 0.2):Play()
+		if global.lower(info.mode) == "released" then 
+			info:set("active", true)
+		end
+	end)
 
-			for index, value in ipairs(Library.DropdownSizes) do
-				if value.object == Dropdown then
-					scrollingFrame.CanvasSize = scrollingFrame.CanvasSize - value.size
-					table.remove(Library.DropdownSizes, index)
-				end
-			end
+	return info
+end
+
+-- Section OR Toggle > Colorpicker
+library.colorpicker = function(self, info) 
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.alpha = info.alpha
+	info.title = info.title or "Colorpicker"
+	info.order = info.order or #self.elements + 1
+	info.config = global.declare(true, info.config)
+	info.callback = info.callback or function() end
+	info.visible = global.declare(true, info.visible)
+	info.color = info.color or global.rgb(255, 255, 255)
+	info.flag = library.next(info.flag or "Colorpicker")
+	info.pointer = info.pointer or info.flag
+
+	info.is = "colorpicker"
+
+	info.popuphovered = false
+	info.opened = false
+	info.old = global.gethsv(info.color)
+	info.old.alpha = info.alpha or 1
+	info.old.color = info.color
+	info.picking = {hue = false, satval = false, alpha = false}
+	info.connected = {}
+	info.functions = {}
+	info.parent = assert(self.objects ['content'] or self.objects ['container'])
+
+	info.listener = function(...)
+		for _, func in info.connected do
+			global.thread(func)(...)
 		end
 	end
 
-	local function createDropButton(value)
-		local DropButton = Assets.Elements.DropButton:Clone()
-		DropButton.Visible = true
-		DropButton.Parent = DropButtons
-
-		local TextButton = DropButton.TextButton
-		local Background = TextButton.Background
-		local Checkmark = TextButton.Checkmark
-
-		local TextLabel = DropButton.TextLabel
-		TextLabel.Text = tostring(value)
-		
-		Theme:registerToObjects({
-			{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
-			{object = Background, property = "BackgroundColor3", theme = {"PrimaryColor", "SecondaryBackgroundColor"}},
-			{object = Checkmark, property = "ImageColor3", theme = {"TertiaryBackgroundColor"}},
+	local objects = {} do
+		objects ['element'] = info.parent:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "element",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(0, 100, 0, 12),
+			BorderSizePixel = 0,
+			LayoutOrder = info.order,
+			Visible = info.visible,
+			BackgroundColor3 = global.rgb(255, 255, 255)
 		})
-		
-		return TextButton
+
+		objects ['label'] = self.objects ['content'] and objects ['element']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Name = "label",
+			Size = global.dim2(0, 0, 1, 0),
+			Position = global.dim2(0, 14, 0, 0),
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['safezone'] = self.objects ['content'] and objects ['label']:create("UIPadding", {
+			PaddingTop = global.dim(0, 5),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1)
+		})
+
+		objects ['content'] = objects ['element']:create("Frame", {
+			BorderColor3 = global.rgb(0, 0, 0),
+			AnchorPoint = global.vec2(1, 0),
+			Name = "content",
+			BackgroundTransparency = 1,
+			Position = global.dim2(1, 0, 0, -1),
+			Size = global.dim2(0, 0, 1, 0),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['list'] = objects ['content']:create("UIListLayout", {
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Right,
+			Padding = global.dim(0, 10),
+			Name = "list",
+			SortOrder = Enum.SortOrder.LayoutOrder
+		})
+
+		objects ['colorpicker'] = objects ['content']:create("TextButton", {
+			FontFace = library.secondaryfont,
+			TextColor3 = global.rgb(80, 80, 80),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			Name = "colorpicker",
+			Size = global.dim2(0, 15, 0, 5),
+			BorderSizePixel = 2,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['grid'] = objects ['colorpicker']:create("ImageLabel", {
+			ScaleType = Enum.ScaleType.Tile,
+			BorderColor3 = global.rgb(0, 0, 0),
+			Name = "asset",
+			Image = "rbxassetid://18274452449",
+			BackgroundTransparency = 1,
+			TileSize = global.dim2(0, 5, 0, 5),
+			Position = global.dim2(0, -1, 0, -1),
+			Size = global.dim2(1, 2, 1, 2),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['fade'] = objects ['grid']:create("UIGradient", {
+			Rotation = 90,
+			Name = "fade",
+			Color = global.rgbseq{global.rgbkey(0, global.rgb(255, 255, 255)), global.rgbkey(0.725, global.rgb(167, 167, 167)), global.rgbkey(1, global.rgb(150, 150, 150))}
+		})
+
+		objects ['color'] = objects ['colorpicker']:create("Frame", {
+			Name = "color",
+			Position = global.dim2(0, -1, 0, -1),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 2, 1, 2),
+			BackgroundTransparency = 1 - info.old.alpha,
+			BorderSizePixel = 0,
+			BackgroundColor3 = info.color
+		})
+
+		objects ['fade'] = objects ['color']:create("UIGradient", {
+			Rotation = 90,
+			Name = "fade",
+			Color = global.rgbseq{global.rgbkey(0, global.rgb(255, 255, 255)), global.rgbkey(0.725, global.rgb(167, 167, 167)), global.rgbkey(1, global.rgb(150, 150, 150))}
+		})
+
+		objects ['picker'] = objects ['colorpicker']:create("Frame", {
+			BorderColor3 = global.rgb(0, 0, 0),
+			Rotation = 0.0000000000001,
+			Name = "picker",
+			Position = global.dim2(1, 5, 0, 0),
+			Size = global.dim2(0, 150, 0, 150),
+			ZIndex = 20,
+			Visible = info.opened,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['border'] = objects ['picker']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['x'] = objects ['picker']:create("Frame", {
+			Name = "x",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, 0, 0, 0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['list'] = objects ['x']:create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Wraps = true,
+			Name = "list",
+			HorizontalFlex = Enum.UIFlexAlignment.Fill,
+			Padding = global.dim(0, 3),
+			FillDirection = Enum.FillDirection.Horizontal,
+			VerticalFlex = Enum.UIFlexAlignment.Fill
+		})
+
+		objects ['satval'] = objects ['x']:create("TextButton", {
+			Name = "satval",
+			Size = global.dim2(0, 0, 1, -20),
+			BorderColor3 = global.rgb(0, 0, 0),
+			AutoButtonColor = false,
+			Text = "",
+			ZIndex = 20,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.hsv(info.old.hue, 1, 1)
+		})
+
+		objects ['asset'] = objects ['satval']:create("ImageLabel", {
+			BorderColor3 = global.rgb(0, 0, 0),
+			Image = "rbxassetid://134927516942491",
+			BackgroundTransparency = 1,
+			Name = "asset",
+			Size = global.dim2(1, 0, 1, 0),
+			ZIndex = 20,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['asset'] = objects ['satval']:create("ImageLabel", {
+			BorderColor3 = global.rgb(0, 0, 0),
+			Image = "rbxassetid://96192970265863",
+			BackgroundTransparency = 1,
+			Name = "asset",
+			Size = global.dim2(1, 0, 1, 0),
+			ZIndex = 20,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['border'] = objects ['satval']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['satval_pointer'] = objects ['satval']:create("Frame", {
+			AnchorPoint = global.vec2(0.5, 0.5),
+			Name = "pointer",
+			Size = global.dim2(0, 2, 0, 2),
+			BorderColor3 = global.rgb(0, 0, 0),
+			ZIndex = 20,
+			BorderSizePixel = 0,
+			Position = global.dim2(info.old.sat, 0, 1 - info.old.val, 0),
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['border'] = objects ['satval_pointer']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Name = "border"
+		})
+
+		objects ['hue'] = objects ['x']:create("TextButton", {
+			Name = "hue",
+			Size = global.dim2(0, 10, 1, -20),
+			BorderColor3 = global.rgb(0, 0, 0),
+			ZIndex = 20,
+			AutoButtonColor = false,
+			Text = "",
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['flex'] = objects ['hue']:create("UIFlexItem", {
+			Name = "flex"
+		})
+
+		objects ['asset'] = objects ['hue']:create("ImageLabel", {
+			BorderColor3 = global.rgb(0, 0, 0),
+			Image = "rbxassetid://133334110106525",
+			BackgroundTransparency = 1,
+			Name = "asset",
+			Size = global.dim2(1, 0, 1, 0),
+			ZIndex = 20,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['border'] = objects ['hue']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['hue_pointer'] = objects ['hue']:create("Frame", {
+			Name = "pointer",
+			Size = global.dim2(1, 0, 0, 1),
+			BorderColor3 = global.rgb(0, 0, 0),
+			ZIndex = 20,
+			BorderSizePixel = 0,
+			Position = global.dim2(0, 0, info.old.hue, 0),
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['border'] = objects ['hue_pointer']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Name = "border"
+		})
+
+		objects ['y'] = objects ['picker']:create("Frame", {
+			Name = "y",
+			Size = global.dim2(0, 0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.Y,
+			Visible = info.alpha ~= nil,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['flex'] = objects ['y']:create("UIFlexItem", {
+			Name = "flex"
+		})
+
+		objects ['alpha'] = objects ['y']:create("Frame", {
+			Name = "alpha",
+			Size = global.dim2(0, 0, 0, 10),
+			BorderColor3 = global.rgb(0, 0, 0),
+			ZIndex = 20,
+			AutoButtonColor = false,
+			Text = "",
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['asset'] = objects ['alpha']:create("ImageLabel", {
+			ScaleType = Enum.ScaleType.Tile,
+			BorderColor3 = global.rgb(0, 0, 0),
+			Name = "asset",
+			Image = "rbxassetid://18274452449",
+			BackgroundTransparency = 1,
+			TileSize = global.dim2(0, 5, 0, 5),
+			Size = global.dim2(1, 0, 1, 0),
+			ZIndex = 20,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['border'] = objects ['alpha']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['gradient'] = objects ['alpha']:create("Frame", {
+			Name = "gradient",
+			Size = global.dim2(1, 0, 1, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			ZIndex = 20,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['fade'] = objects ['gradient']:create("UIGradient", {
+			Transparency = global.numseq{global.numkey(0, 1), global.numkey(1, 0)},
+			Name = "fade"
+		})
+
+		objects ['alpha_pointer'] = objects ['alpha']:create("Frame", {
+			Name = "pointer",
+			Size = global.dim2(0, 1, 1, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			ZIndex = 20,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			Position = global.dim2(info.old.alpha, 0, 0, 0)
+		})
+
+		objects ['border'] = objects ['alpha_pointer']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Name = "border"
+		})
+
+		objects ['list'] = objects ['y']:create("UIListLayout", {
+			Wraps = true,
+			Name = "list",
+			HorizontalFlex = Enum.UIFlexAlignment.Fill,
+			Padding = global.dim(0, 3),
+			SortOrder = Enum.SortOrder.LayoutOrder
+		})
+
+		objects ['safezone'] = objects ['y']:create("UIPadding", {
+			Name = "safezone",
+			PaddingRight = global.dim(0, 12),
+			PaddingLeft = global.dim(0, 1)
+		})
+
+		objects ['list'] = objects ['picker']:create("UIListLayout", {
+			Wraps = true,
+			Name = "list",
+			HorizontalFlex = Enum.UIFlexAlignment.Fill,
+			Padding = global.dim(0, 3),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			VerticalFlex = Enum.UIFlexAlignment.Fill
+		})
+
+		objects ['safezone'] = objects ['picker']:create("UIPadding", {
+			PaddingTop = global.dim(0, 3),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 3),
+			PaddingRight = global.dim(0, 3),
+			PaddingLeft = global.dim(0, 3)
+		})
+
+		objects ['ignore'] = objects ['picker']:create("Folder", {
+			Name = "ignore"
+		})
+
+		objects ['resizexy'] = objects ['ignore']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			Name = "resizexy",
+			BackgroundTransparency = 1,
+			Position = global.dim2(1, -5, 1, -5),
+			Size = global.dim2(0, 10, 0, 10),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		global.insert(library.popups, {input = objects ['colorpicker'], target = objects ['picker']})
+		info.objects = objects
 	end
 
-	local function tweenDropButton(dropButton: Instance, backgroundColor: Color3, imageTransparency: number)
-		Utility:tween(dropButton.Background, {BackgroundColor3 = backgroundColor}, 0.2, "Circular", "InOut"):Play()
-		Utility:tween(dropButton.Checkmark, {ImageTransparency = imageTransparency}, 0.3):Play()
+	objects ['resizexy']:resize(objects ['picker'], global.vec2(100, 100), global.vec2(5000, 5000))
+
+	info.functions.visible = function(bool)
+		if info.visible == bool then return end
+
+		info.visible = global.declare(not info.visible, bool)
+
+		objects ['section'].Visible = info.visible
 	end
 
-	local Context = Utility:validateContext({
-		text = {Value = options.text, ExpectedType = "string"},
-		default = {Value = options.default, ExpectedType = "table"},
-		list = {Value = options.list, ExpectedType = "table"},
-		callback = {Value = options.callback, ExpectedType = "function"},
-		TextButton = {Value = TextButton, ExpectedType = "Instance"},
-		DropButtons = {Value = DropButtons, ExpectedType = "Instance"},
-		createDropButton = {Value = createDropButton, ExpectedType = "function"},
-		ScrollingFrame = {Value = scrollingFrame, ExpectedType = "Instance"},
-		multiple = {Value = options.multiple, ExpectedType = "boolean"},
+	info.functions.popopen = function()
+		if info.popuphovered or info.hovered or not info.opened then return end
 
-		tweenDropButtonOn = {Value = function(dropButton)
-			tweenDropButton(dropButton, Theme.PrimaryColor, 0)
-		end, ExpectedType = "function"},
+		info:set("open", false)
+	end
 
-		tweenDropButtonOff = {Value = function(dropButton)
-			tweenDropButton(dropButton, Theme.SecondaryBackgroundColor, 1)
-		end, ExpectedType = "function"},
-	})
+	info.functions.open = function(bool)
+		info.opened = global.declare(not info.opened, bool)
 
-	TextButton.MouseButton1Down:Connect(toggleList)
+		objects ['picker'].Visible = info.opened
+	end
 
-	-- Search drop buttons function
-	Search:GetPropertyChangedSignal("Text"):Connect(function()
-		for _, dropButton in ipairs(DropButtons:GetChildren()) do
-			if not dropButton:IsA("Frame") then
-				continue
-			end
+	info.functions.hue = function(hue)
+		local hsv, input
 
-			if Search.Text == "" or string.match(string.lower(dropButton.TextLabel.Text), string.lower(Search.Text)) then
-				dropButton.Visible = true
-			else
-				dropButton.Visible = false
-			end
+		if global.isa(hue) ~= "number" then
+			input = hue
+
+			hue = global.clamp((input.Position.Y - objects ['hue'].AbsolutePosition.Y) / objects ['hue'].AbsoluteSize.Y, 0, 1)
 		end
-	end)
 
-	local Dropdown = Modules.Dropdown.new(Context)
-	Dropdown:handleDropdown()
-	
-	Theme:registerToObjects({
-		{object = ImageButton, property = "ImageColor3", theme = {"SecondaryTextColor"}},
-		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = Box, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-		{object = TextButton, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = List, property = "BackgroundColor3", theme = {"Line"}},
-		{object = Inner, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
-		{object = Search, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = Search, property = "PlaceholderColor3", theme = {"SecondaryTextColor"}},
-		{object = Search, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-		{object = Search.Parent, property =  "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-	})
-	
-	List.BackgroundColor3 = Theme.Line
-	Inner.BackgroundColor3 = Theme.PrimaryBackgroundColor
-	Box.BackgroundColor3 = Theme.SecondaryBackgroundColor
-	Search.BackgroundColor3 = Theme.SecondaryBackgroundColor
+		hsv = global.hsv(hue, info.old.sat, info.old.val)
 
-	shared.Flags.Dropdown[options.text] = {
-		getList = function()
-			return Context.list
-		end,
+		if hue == info.old.hue then return end
 
-		getValue = function()
-			return Dropdown:getValue()	
-		end,
+		info.old.hue = hue
 
-		updateList = function(self, options: table)
-			Dropdown:updateList(options)
-		end,
-	}
-
-	return self:createAddons(options.text, ImageButton, scrollingFrame, {
-		getList = function()
-			return Context.list
-		end,
-
-		getValue = function()
-			return Dropdown:getValue()	
-		end,
-
-		updateList = function(self, options: table)
-			Dropdown:updateList(options)
-		end,
-	})
-end
-
-function Library:createKeybind(options: table, parent, scrollingFrame)
-	Utility:validateOptions(options, {
-		text = {Default = "Keybind", ExpectedType = "string"},
-		default = {Default = "None", ExpectedType = "string"},
-		onHeld = {Default = false, ExpectedType = "boolean"},
-		callback = {Default = function() end, ExpectedType = "function"},
-	})
-	
-	scrollingFrame = self.ScrollingFrame or scrollingFrame
-
-	local Keybind = Assets.Elements.Keybind:Clone()
-	Keybind.Visible = true
-	Keybind.Parent = parent or self.Section
-
-	local TextLabel = Keybind.TextLabel
-	TextLabel.Text = options.text
-	
-	local ImageButton = TextLabel.ImageButton
-	local Background = TextLabel.Background
-	
-	local TextButton = Background.TextButton
-	
-	if not table.find(self.Exclusions, options.default) then
-		TextButton.Text = options.default
-	else
-		TextButton.Text = "None"
-		warn("You already have this key binded")
+		info:set("color", hsv, info.old.alpha, true)
 	end
 
-	if options.default ~= "None" then
-		table.insert(Exclusions, options.default)
+	info.functions.satval = function(sat, val)
+		local hsv, input
+
+		if not global.tfind({global.isa(sat), global.isa(val)}, "number") then
+			input = sat
+
+			sat = global.clamp((input.Position.X - objects ['satval'].AbsolutePosition.X) / objects ['satval'].AbsoluteSize.X, 0, 1)
+			val = 1 - global.clamp((input.Position.Y - objects ['satval'].AbsolutePosition.Y) / objects ['satval'].AbsoluteSize.Y, 0, 1)
+		end
+
+		hsv = global.hsv(info.old.hue, sat, val)
+
+		if hsv == info.old.color then return end
+
+		info.old.sat = sat
+		info.old.val = val
+
+		info:set("color", hsv, info.old.alpha, true)
 	end
 
-	local Context = Utility:validateContext({
-		default = {Value = options.default, ExpectedType = "string"},
-		callback = {Value = options.callback, ExpectedType = "function"},
-		Background = {Value = TextButton.Parent, ExpectedType = "Instance"},
-		TextButton = {Value = TextButton, ExpectedType = "Instance"},
-		Connections = {Value = Connections, ExpectedType = "table"},
-		Library = {Value = Library, ExpectedType = "table"},
-		onHeld = {Value = options.onHeld, ExpectedType = "boolean"},
-		Exclusions = {Value = Exclusions, ExpectedType = "table"},
+	info.functions.alpha = function(alpha)
+		local hsv, input
 
-		autoSizeBackground = {Value = function()
-			local TextBoundsX = math.clamp(TextButton.TextBounds.X + 14, 10, 200)
-			Utility:tween(TextButton.Parent, {Size = UDim2.fromOffset(TextBoundsX, 20)}, 0.2):Play()
-		end, ExpectedType = "function"},
-	})
+		if global.is(alpha) ~= "number" then
+			input = alpha
 
-	local Keybind = Modules.Keybind.new(Context)
-	Keybind:handleKeybind()
-	
-	Theme:registerToObjects({
-		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = ImageButton, property = "ImageColor3", theme = {"SecondaryTextColor"}},
-		{object = Background, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-		{object = TextButton, property = "TextColor3", theme = {"SecondaryTextColor"}}
-	})
-	
-	shared.Flags.Keybind[options.text] = {
-		getKeybind = function(self)
-			return TextButton.Text
-		end,
+			alpha = global.clamp((input.Position.X - objects ['alpha'].AbsolutePosition.X) / objects ['alpha'].AbsoluteSize.X, 0, 1)
+		end
 
-		updateKeybind = function(self, options: table)
-			Keybind:updateKeybind(options)
-		end,
-	}
+		hsv = global.hsv(info.old.hue, info.old.sat, info.old.val)
 
-	return self:createAddons(options.text, ImageButton, scrollingFrame, {
-		getKeybind = function(self)
-			return TextButton.Text
-		end,
+		if alpha == info.old.alpha then return end
 
-		updateKeybind = function(self, options: table)
-			Keybind:updateKeybind(options)
-		end,
-	})
-end
+		info.old.alpha = alpha
 
--- Rushed this, later put it into a module like the other elements, even though it's simple.
-function Library:createButton(options: table, parent, scrollingFrame)
-	Utility:validateOptions(options, {
-		text = {Default = "Button", ExpectedType = "string"},
-		callback = {Default = function() end, ExpectedType = "function"},
-	})
-	
-	scrollingFrame = self.ScrollingFrame or scrollingFrame
-	
-	local Button = Assets.Elements.Button:Clone()
-	Button.Visible = true
-	Button.Parent = parent or self.Section
-		
-	local Background = Button.Background
-	
-	local TextButton = Background.TextButton
-	TextButton.Text = options.text
-	
-	TextButton.MouseButton1Down:Connect(function() 
-		Utility:tween(Background, {BackgroundTransparency = 0}, 0.2):Play()
-		Utility:tween(TextButton, {TextColor3 = Theme.PrimaryColor, TextTransparency = 0}, 0.2):Play()
-		
-		task.delay(0.2, function()
-			Utility:tween(TextButton, {TextColor3 = Theme.SecondaryTextColor, TextTransparency = 0}, 0.2):Play()
-			Utility:tween(Background, {BackgroundTransparency = 0.3}, 0.2):Play()
+		info:set("color", hsv, alpha, true)
+	end
+
+	info.functions.color = function(color, alpha, input)
+		if color == info.old.color and info.old.alpha ~= alpha then return end
+
+		info.color = color
+		info.alpha = alpha or info.old.alpha
+
+		info.old = input and info.old or global.gethsv(color)
+		info.old.color = input and info.old.color or info.color
+		info.old.alpha = input and info.old.alpha or info.alpha
+
+		global.valset(library.flags, info.flag, info.alpha and {info.color, info.alpha} or info.color)
+		global.valset(library.pointers, info.pointer, info)
+
+		global.thread(info.callback)(info.color, info.alpha)
+		global.thread(info.listener)(info.color, info.alpha)
+
+		objects ['color'].BackgroundColor3 = info.color
+		objects ['color'].BackgroundTransparency = 1 - info.old.alpha
+		objects ['satval'].BackgroundColor3 = global.hsv(info.old.hue, 1, 1)
+
+		objects ['hue_pointer']:tween{duration = 0.1, goal = {Position = global.dim2(0, 0, info.old.hue, 0)}}
+		objects ['alpha_pointer']:tween{duration = 0.1, goal = {Position = global.dim2(info.old.alpha, 0, 0, 0)}}
+		objects ['satval_pointer']:tween{duration = 0.1, goal = {Position = global.dim2(info.old.sat, 0, 1 - info.old.val, 0)}}
+	end
+
+	for _, hsv in {"hue", "satval", "alpha"} do
+		objects [hsv]:connect("InputBegan", function(input)
+			if input.UserInputType.Name ~= "MouseButton1" then return end
+
+			info.picking[hsv] = true
+			info:set(hsv, input)
 		end)
-		
-		options.callback() 
-	end)
-	
-	Background.MouseEnter:Connect(function(input)
-		Utility:tween(Background, {BackgroundTransparency = 0.3}, 0.2):Play()
-		Utility:tween(TextButton, {TextColor3 = Theme.PrimaryColor, TextTransparency = 0.3}, 0.2):Play()
-	end)
-	
-	Background.MouseLeave:Connect(function()
-		Utility:tween(Background, {BackgroundTransparency = 0}, 0.2):Play()
-		Utility:tween(TextButton, {TextColor3 = Theme.SecondaryTextColor, TextTransparency = 0}, 0.2):Play()
-	end)
-	
-	Theme:registerToObjects({
-		{object = Background, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-		{object = TextButton, property = "TextColor3", theme = {"SecondaryTextColor"}},
-	})
-end
 
--- Redo textbox later
-function Library:createTextBox(options: table, parent, scrollingFrame)
-	Utility:validateOptions(options, {
-		text = {Default = "Textbox", ExpectedType = "string"},
-		default = {Default = "", ExpectedType = "string"},
-		callback = {Default = function() end, ExpectedType = "function"},
-	})
-	
-	scrollingFrame = self.ScrollingFrame or scrollingFrame
-	
-	local TextBox = Assets.Elements.TextBox:Clone()
-	TextBox.Visible = true
-	TextBox.Parent = parent or self.Section
+		objects [hsv]:connect("InputEnded", function(input)
+			if input.UserInputType.Name ~= "MouseButton1" then return end
 
-	local TextLabel = TextBox.TextLabel
-	TextLabel.Text = options.text
-	
-	local ImageButton = TextLabel.ImageButton
-	
-	local Box = TextLabel.TextBox
-	Box.Text = options.default
-
-	local Context = Utility:validateContext({
-		default = {Value = options.default, ExpectedType = "string"},
-		callback = {Value = options.callback, ExpectedType = "function"},
-		TextBox = {Value = Box, ExpectedType = "Instance"},
-
-		autoSizeTextBox = {Value = function()
-			local TextBoundsX = math.clamp(Box.TextBounds.X + 14, 0, 100)
-			Utility:tween(Box, {Size = UDim2.fromOffset(TextBoundsX, 20)}, 0.2):Play()
-		end, ExpectedType = "function"}
-	})
-
-	local TextBox = Modules.TextBox.new(Context)
-	TextBox:handleTextBox()
-	
-	Theme:registerToObjects({
-		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = Box, property = "TextColor3", theme = {"SecondaryTextColor"}},
-		{object = Box, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-	})
-
-	shared.Flags.TextBox[options.text] = {
-		getText = function(self)
-			return Box.Text
-		end,
-
-		updateText = function(self, options: table)
-			Box.Text = options.text or ""
-			Context.callback(Box.Text)
-		end,
-	}
-
-	return self:createAddons(options.text, ImageButton, scrollingFrame, {
-		getText = function(self)
-			return Box.Text
-		end,
-
-		updateText = function(self, options: table)
-			Box.Text = options.text or ""
-			Context.callback(Box.Text)
-		end,
-	})
-end
-
--- Later put this into a module, but this is fine if it's put here anyways.
-local ChildRemoved = false
-function Library:notify(options: table)
-	Utility:validateOptions(options, {
-		title = {Default = "Notification", ExpectedType = "string"},
-		text = {Default = "Hello world", ExpectedType = "string"},
-		duration = {Default = 3, ExpectedType = "number"},
-		maxSizeX = {Default = 300, ExpectedType = "number"},
-		scaleX = {Default = 0.165, ExpectedType = "number"},
-		sizeY = {Default = 100, ExpectedType = "number"},
-	})
-	
-	local Notification = Assets.Elements.Notification:Clone()
-	Notification.Visible = true
-	Notification.Parent = ScreenGui.Notifications
-	Notification.Size = UDim2.new(options.scaleX, 0, 0, options.sizeY)
-	Notification.UISizeConstraint.MaxSize = Vector2.new(options.maxSizeX, 9e9)
-	
-	local Title = Notification.Title
-	Title.Text = options.title
-	
-	local Body = Notification.Body
-	Body.Text = options.text
-	
-	local Line = Notification.Line
-	
-	-- Put transparent objects to not be visible to make cool effect
-	local NotificationTransparentObjects = Utility:getTransparentObjects(Notification)
-	
-	for _, data in ipairs(NotificationTransparentObjects) do
-		data.object[data.property] = 1
-	end
-
-	Notification.BackgroundTransparency = 1
-	
-	-- Get back NotificationTransparentObjects again and make it visible now with cool effect!!
-	for _, data in ipairs(NotificationTransparentObjects) do
-		Utility:tween(data.object, {[data.property] = 0}, 0.2):Play()
-	end
-
-	Utility:tween(Notification, {["BackgroundTransparency"] = 0}, 0.2):Play()
-
-	local notificationPosition = -24
-	local notificationSize = 0
-	local PADDING_Y = 14
-	
-	for index, notification in ipairs(ScreenGui.Notifications:GetChildren()) do
-		if index == 1 then
-			notificationSize = notification.AbsoluteSize.Y
-			Utility:tween(notification, {Position = UDim2.new(1, -24, 1, notificationPosition)}, 0.2):Play()
-			continue
-		end
-		
-		-- Current notification position
-		notificationPosition -= notificationSize + PADDING_Y
-		-- Update notification size for next time to get proper position
-		notificationSize = notification.Size.Y.Offset
-		Notification.Position = UDim2.new(1, Notification.Position.X.Offset, 1, notificationPosition)
-	end
-	
-	-- Update notification position when notification is removed
-	if not ChildRemoved then
-		ScreenGui.Notifications.ChildRemoved:Connect(function(child)		
-			for index, notification in ipairs(ScreenGui.Notifications:GetChildren()) do
-				if index == 1 then
-					notificationPosition = -14
-					notificationSize = notification.AbsoluteSize.Y
-					Utility:tween(notification, {Position = UDim2.new(1, -24, 1, notificationPosition)}, 0.2):Play()
-					continue
-				end
-
-				-- Current notification position
-				notificationPosition -= notificationSize + PADDING_Y
-				-- Update notification size for next time to get proper position
-				notificationSize = notification.AbsoluteSize.Y
-				Utility:tween(notification, {Position = UDim2.new(1, -24, 1, notificationPosition)}, 0.2):Play()
-			end
+			info.picking[hsv] = false
 		end)
-		
-		ChildRemoved = true
 	end
-	
-	-- Auto remove notification after a delay
-	task.delay(options.duration, function()
-		if Notification then
-			for _, data in ipairs(Utility:getTransparentObjects(Notification)) do
-				Utility:tween(data.object, {[data.property] = 1}, 0.2):Play()
-			end
-			
-			Utility:tween(Notification, {["BackgroundTransparency"] = 1}, 0.2):Play()
-			
-			task.wait(0.2)
-			Notification:Destroy()
+
+	objects ['colorpicker']:connect("InputBegan", function(input)
+		if input.UserInputType.Name ~= "MouseButton1" then return end
+
+		info:set("open")
+	end)
+
+	objects ['colorpicker']:connect("MouseEnter", function()
+		if info.hovered then return end
+
+		info.hovered = true
+	end)
+
+	objects ['colorpicker']:connect("MouseLeave", function()
+		if not info.hovered then return end
+
+		info.hovered = false
+	end)
+
+	objects ['picker']:connect("MouseEnter", function()
+		if info.popuphovered then return end
+
+		info.popuphovered = true
+	end)
+
+	objects ['picker']:connect("MouseLeave", function()
+		if not info.popuphovered then return end
+
+		info.popuphovered = false
+	end)
+
+	object:connection(global.userinput.InputBegan, info.functions.popopen)
+
+	object:connection(global.userinput.InputChanged, function(input)
+		if input.UserInputType.Name ~= "MouseMovement" or not info.opened or not info.visible then return end
+
+		if info.picking.hue then
+			info:set("hue", input)
+		end
+
+		if info.picking.satval then
+			info:set("satval", input)
+		end
+
+		if info.picking.alpha then
+			info:set("alpha", input)
 		end
 	end)
-	
-	-- Show notification
-	Utility:tween(Notification, {Position = UDim2.new(1, -24, 1, notificationPosition)}, 0.2):Play()
-	task.wait(0.2)
-	
-	-- Register to Theme
-	Theme:registerToObjects({
-		{object = Notification, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-		{object = Title, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
-		{object = Title, property = "TextColor3", theme = {"PrimaryTextColor"}},
-		{object = Line, property = "BackgroundColor3", theme = {"Line"}},
-		{object = Body, property = "TextColor3", theme = {"SecondaryTextColor"}},
-	})
+
+	-- global.valset(library.configs, info.flag, info.config)
+	global.valset(library.flags, info.flag, info.alpha and {info.color, info.alpha} or info.color)
+	global.valset(library.pointers, info.pointer, info)
+
+	global.insert(self.elements, info)
+
+	return info
 end
 
--- Save Manager, Theme Manager, UI settings
-function Library:createManager(options: table)
-	local function getJsons() 
-		local jsons = {}
-		for _, file in ipairs(listfiles(options.folderName)) do
-			if not string.match(file, "Theme") and not string.match(file, "autoload") then
-				file = string.gsub(file, options.folderName .. "\\", "")
-				file = string.gsub(file, ".json", "")
-				table.insert(jsons, file)
-			end
-		end
-	
-		return jsons
-	end
+-- Section > Slider
+library.slider = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
 
-	local function getThemeJsons()
-		local themeJsons = {}
-		for _, file in ipairs(listfiles(options.folderName .. "/Theme")) do
-			file = string.gsub(file, options.folderName .. "/Theme" .. "\\", "")
-			file = string.gsub(file, ".json", "")
-			table.insert(themeJsons, file)
-		end
+	info.value = info.value or 50
+	info.suffix = info.suffix or ""
+	info.title = info.title or "Toggle"
+	info.min = info.min or info.minimum or 0
+	info.max = info.max or info.maximum or 100
+	info.float = info.float or info.round or 1
+	info.order = info.order or #self.elements + 1
+	info.callback = info.callback or function() end
+	info.flag = library.next(info.flag or "Slider")
+	info.pointer = info.pointer or info.flag
+	info.config = global.declare(true, info.config)
+	info.visible = global.declare(true, info.visible)
 
-		return themeJsons
-	end
-	
-	local function getSavedData()
-		local SavedData = {
-			Dropdown = {},
-			Toggle = {},
-			Keybind = {},
-			Slider = {},
-			TextBox = {},
-			ColorPicker = {},
-		}
-	
-		local Excluded = {"Line", "PrimaryColor", "PrimaryTextColor", "SecondaryTextColor", "PrimaryBackgroundColor", "SecondaryBackgroundColor", "TertiaryBackgroundColor", "ScrollingBarImageColor", "TabBackgroundColor"}
-	
-		for elementType, elementData in pairs(shared.Flags) do
-			for elementName, addon in pairs(elementData) do
-				if elementType == "Dropdown" and typeof(addon) == "table" and addon.getList and addon.getValue then
-					SavedData.Dropdown[elementName] = {list = addon:getList(), value = addon:getValue()}
-				end
-	
-				if elementType == "Toggle" and typeof(addon) == "table" and addon.getState then
-					SavedData.Toggle[elementName] = {state = addon:getState()}
-				end
-	
-				if elementType == "Slider" and typeof(addon) == "table" and addon.getValue then
-					SavedData.Slider[elementName] = {value = addon:getValue()}
-				end
-	
-				if elementType == "Keybind" and typeof(addon) == "table" and addon.getKeybind then
-					SavedData.Keybind[elementName] = {keybind = addon:getKeybind()}
-				end
-	
-				if elementType == "TextBox" and typeof(addon) == "table" and addon.getText then
-					SavedData.TextBox[elementName] = {text = addon:getText()}
-				end
-	
-				if not table.find(Excluded, elementName) and elementType == "ColorPicker" and typeof(addon) == "table" and addon.getColor then
-					SavedData.ColorPicker[elementName] = {color = {addon:getColor().R * 255, addon:getColor().G * 255, addon:getColor().B * 255}}
-				end
-			end
-		end
-	
-		return SavedData
-	end
-	
-	
-	local function getThemeData()
-		local SavedData = {
-			ColorPicker = {},
-		}
-	
-		for elementType, elementData in pairs(shared.Flags) do
-			for elementName, addon in pairs(elementData) do
-				for _, themeName in ipairs({"Line", "PrimaryColor", "PrimaryTextColor", "SecondaryTextColor", "PrimaryBackgroundColor", "SecondaryBackgroundColor", "TertiaryBackgroundColor", "ScrollingBarImageColor", "TabBackgroundColor"}) do
-					if elementName == themeName and elementType == "ColorPicker" and typeof(addon) == "table" and addon.getColor then
-						SavedData.ColorPicker[elementName] = {color = {addon:getColor().R * 255, addon:getColor().G * 255, addon:getColor().B * 255}}
-					end
-				end
-			end
-		end
+	info.is = "slider"
 
-		return SavedData
-	end
-	
-	local function loadSaveConfig(fileName: string)
-		local decoded = game:GetService("HttpService"):JSONDecode(readfile(options.folderName .. "/" .. fileName .. ".json"))
-	
-		for elementType, elementData in pairs(shared.Flags) do
-			for elementName, _ in pairs(elementData) do
-				if elementType == "Dropdown" and decoded.Dropdown[elementName] and elementName ~= "Configs" then
-					shared.Flags.Dropdown[elementName]:updateList({list = decoded.Dropdown.list, default = decoded.Dropdown.value or {""}})
-				end
-	
-				if elementType == "Toggle" and decoded.Toggle[elementName] then
-					shared.Flags.Toggle[elementName]:updateState({state = decoded.Toggle[elementName].state})
-				end
-	
-				if elementType == "Slider" and decoded.Slider[elementName] then
-					shared.Flags.Slider[elementName]:updateValue({value = decoded.Slider[elementName].value})
-				end
-	
-				if elementType == "Keybind" and decoded.Keybind[elementName] then
-					shared.Flags.Keybind[elementName]:updateKeybind({bind = decoded.Keybind[elementName].keybind})
-				end
-	
-				if elementType == "TextBox" and decoded.TextBox[elementName] then
-					shared.Flags.TextBox[elementName]:updateText({text = decoded.TextBox[elementName].text})
-				end
-	
-				if elementType == "ColorPicker" and decoded.ColorPicker[elementName] then
-					shared.Flags.ColorPicker[elementName]:updateColor({color = Color3.fromRGB(unpack(decoded.ColorPicker[elementName].color))})
-				end
-			end
-		end
-	end
-	
+	info.old = info.value
+	info.active = false
+	info.hovered = false
+	info.connected = {}
+	info.functions = {}
 
-	
-	
-	
-	
-	local function loadThemeConfig(fileName: string)
-		local decoded = game:GetService("HttpService"):JSONDecode(readfile(options.folderName .. "/" .. "Theme/" .. fileName .. ".json"))
-	
-		for elementType, elementData in pairs(shared.Flags) do
-			for elementName, _ in pairs(elementData) do
-				if elementType == "ColorPicker" and decoded.ColorPicker[elementName] then
-					shared.Flags.ColorPicker[elementName]:updateColor({color = Color3.fromRGB(unpack(decoded.ColorPicker[elementName].color))})
-				end
-			end
+	info.listener = function(...)
+		for _, func in info.connected do
+			global.thread(func)(...)
 		end
 	end
 
-	Utility:validateOptions(options, {
-		folderName = {Default = "Leny", ExpectedType = "string"},
-	})
+	assert(self.objects ['content'])
 
-	local UI = Library:createTab({text = "Settings", icon = "rbxassetid://108328439511136"})
-	local Page1 = UI:createSubTab({text = "General", sectionStyle = "Single"})
-	local menu1 = Page1:createSection({text = "Menu"})
+	local objects = {} do
+		objects ['element'] = self.objects ['content']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "element",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(0, 100, 0, 25),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			LayoutOrder = info.order,
+			Visible = info.visible
+		})
 
-	local Page2 = UI:createSubTab({text = "Configuration", sectionStyle = "Single"})
-	local SaveManager = Page2:createSection({text = "Configs"})
+		objects ['label'] = objects ['element']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Name = "label",
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = global.dim2(0, 0, 0, 17),
+			Position = global.dim2(0, 14, 0, 0),
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
 
-	local Page3 = UI:createSubTab({text = "Style", sectionStyle = "Single"})
-	local ThemeManager = Page3:createSection({text = "Themes"})
+		objects ['safezone'] = objects ['label']:create("UIPadding", {
+			PaddingTop = global.dim(0, 4),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1)
+		})
 
-		
-	menu1:createKeybind({
-		text = "Open / Close", 
-		default = "Home",
-		callback = function()
-			ScreenGui.Enabled = not ScreenGui.Enabled
-		end,
-	})
-	menu1:createButton({text = "Destroy UI", callback = function() Library:destroy() end})
+		objects ['slider'] = objects ['element']:create("Frame", {
+			Name = "slider",
+			Position = global.dim2(0, 16, 0, 15),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, -35, 0, 6),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(25, 25, 25)
+		})
 
-	-- Create color pickers to change UI color
-	ThemeManager:createPicker({
-		text = "SecondaryTextColor", 
-		default = Theme.SecondaryTextColor, 
-		callback = function(color)
-			Theme:setTheme("SecondaryTextColor", color)
-		end,
-	})
-	
-	ThemeManager:createPicker({
-		text = "PrimaryTextColor", 
-		default = Theme.PrimaryTextColor,
-		callback = function(color)
-			Theme:setTheme("PrimaryTextColor", color)
-		end,
-	})
+		objects ['border'] = objects ['slider']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
 
-	ThemeManager:createPicker({
-		text = "PrimaryBackgroundColor", 
-		default = Theme.PrimaryBackgroundColor, 
-		callback = function(color)
-			Theme:setTheme("PrimaryBackgroundColor", color)
-		end,
-	})
+		objects ['accent'] = objects ['slider']:create("Frame", {
+			Name = "accent",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2((info.value - info.min) / (info.max - info.min), 0, 1, 0),
+			BorderSizePixel = 0,
+			BackgroundColor3 = library.accent
+		})
 
-	ThemeManager:createPicker({
-		text = "SecondaryBackgroundColor", 
-		default = Theme.SecondaryBackgroundColor, 
-		callback = function(color)
-			Theme:setTheme("SecondaryBackgroundColor", color)
-		end,
-	})
+		objects ['value'] = objects ['element']:create("TextBox", {
+			FontFace = library.primaryfont,
+			AnchorPoint = global.vec2(1, 0),
+			PlaceholderColor3 = global.rgb(150, 150, 150),
+			TextSize = 9,
+			Size = global.dim2(0, 0, 0, 17),
+			TextColor3 = global.rgb(150, 150, 150),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.value .. info.suffix,
+			Name = "value",
+			TextWrapped = true,
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Position = global.dim2(1, -19, 0, -3),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundColor3 = global.rgb(25, 25, 25)
+		})
 
-	ThemeManager:createPicker({
-		text = "TabBackgroundColor", 
-		default = Theme.TabBackgroundColor, 
-		callback = function(color)
-			Theme:setTheme("TabBackgroundColor", color)
-		end,
-	})
+		objects ['hitbox'] = objects ['element']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			AutoButtonColor = false,
+			Name = "hitbox",
+			BackgroundTransparency = 1,
+			Position = global.dim2(0, 16, 0, 14),
+			Size = global.dim2(1, -35, 0, 6),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			ZIndex = 2
+		})
 
-	ThemeManager:createPicker({
-		text = "PrimaryColor", 
-		default = Theme.PrimaryColor, 
-		callback = function(color)
-			Theme:setTheme("PrimaryColor", color)
-		end,
-	})
-
-	ThemeManager:createPicker({
-		text = "Outline", 
-		default = Theme.Line, 
-		callback = function(color)
-			Theme:setTheme("Line", color)
-		end,
-	})
-
-	ThemeManager:createPicker({
-		text = "TertiaryBackgroundColor", 
-		default = Theme.TertiaryBackgroundColor, 
-		callback = function(color)
-			Theme:setTheme("TertiaryBackgroundColor", color)
-		end,
-	})
-
-	ThemeManager:createPicker({
-		text = "SecondaryTextColor", 
-		default = Theme.SecondaryTextColor, 
-		callback = function(color)
-			Theme:setTheme("SecondaryTextColor", color)
-		end,
-	})
-
-	ThemeManager:createPicker({
-		text = "ScrollingBarImageColor", 
-		default = Theme.ScrollingBarImageColor, 
-		callback = function(color)
-			Theme:setTheme("ScrollingBarImageColor", color)
-		end,
-	})	
-
-	if not isfolder(options.folderName) then
-		makefolder(options.folderName)
+		objects ['safezone'] = objects ['value']:create("UIPadding", {
+			PaddingBottom = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 4),
+			Name = "safezone"
+		})
 	end
 
-	if not isfolder(options.folderName .. "/Theme") then
-		makefolder(options.folderName .. "/Theme")
+	info.functions.visible = function(bool)
+		if info.visible == bool then return end
+
+		info.visible = global.declare(not info.visible, bool)
+
+		objects ['element'].Visible = info.visible
 	end
 
-	local configName = SaveManager:createTextBox({text = "Config Name"})
-	local jsons = getJsons()
+	info.functions.hover = function(bool)
+		if info.hovered == bool then return end
+		info.hovered = global.declare(not info.hovered, bool)
 
-	SaveManager:createButton({text = "Create Config", callback = function()
-		local SavedData = getSavedData()
-		local encoded = game:GetService("HttpService"):JSONEncode(SavedData)
-		writefile(options.folderName .. "/" .. configName:getText() .. ".json", encoded)
-		
-		if shared.Flags.Dropdown["Configs"] then
-			shared.Flags.Dropdown["Configs"]:updateList({list = getJsons(), default = {shared.Flags.Dropdown["Configs"]:getValue()}})
-		end
-	end})
-	
-	local Configs = SaveManager:createDropdown({text = "Configs", list = jsons})
-
-	SaveManager:createButton({text = "Save/Overwrite Config", callback = function()
-		local SavedData = getSavedData()
-		local encoded = game:GetService("HttpService"):JSONEncode(SavedData)
-		writefile(options.folderName .. "/" .. Configs:getValue() .. ".json", encoded)
-		Configs:updateList({list = getJsons(), default = {Configs:getValue()}})
-	end,})
-
-	SaveManager:createButton({
-		text = "Load Config", 
-		callback = function()
-    		loadSaveConfig(Configs:getValue())
-		end
-	})
-
-	-- Auto load
-	SaveManager:createButton({
-		text = "Set as Auto Load", 
-		callback = function()
-			writefile(options.folderName .. "/autoload.txt", Configs:getValue())
-		end
-	})
-
-	if isfile(options.folderName .. "/autoload.txt") then
-		loadConfig(readfile(options.folderName .. "/autoload.txt"))
+		objects ['slider']:tween{duration = 0.1, goal = {BackgroundColor3 = info.hovered and global.rgb(30, 30, 30) or global.rgb(25, 25, 25)}}
 	end
 
-	local themeConfigName = ThemeManager:createTextBox({text = "Theme Config Name"})
-
-	ThemeManager:createButton({
-		text = "Create Theme Config", 
-		callback = function()
-			local ThemeData = getThemeData()
-			local encoded = game:GetService("HttpService"):JSONEncode(ThemeData)
-			writefile(options.folderName .. "/" .. "Theme/" .. themeConfigName:getText() .. ".json", encoded)
-
-			if shared.Flags.Dropdown["Theme Configs"] then
-				shared.Flags.Dropdown["Theme Configs"]:updateList({list = getThemeJsons(), default = {shared.Flags.Dropdown["Theme Configs"]:getValue()}})
-			end
+	info.functions.default = function(value)
+		if global.is(value) ~= "number" then
+			value = ((info.max - info.min) * (value.Position.X - objects ['slider'].AbsolutePosition.X) / objects ['slider'].AbsoluteSize.X)
 		end
-	})
 
-	local ThemeConfigs = ThemeManager:createDropdown({
-		text = "Theme Configs", 
-		list = getThemeJsons(),
-	})
+		value = global.clamp(global.round(value, info.float), info.min, info.max)
 
-	ThemeManager:createButton({
-		text = "Save Theme Config", 
-		callback = function()
-			local ThemeData = getThemeData()
-			local encoded = game:GetService("HttpService"):JSONEncode(ThemeData)
-			writefile(options.folderName .. "/" .. "Theme/" .. ThemeConfigs:getValue() .. ".json", encoded)
-			ThemeConfigs:updateList({list = getThemeJsons(), default = {ThemeConfigs:getValue()}})
-		end
-	})
+		if value == info.old then return end
 
-	ThemeManager:createButton({
-		text = "Load Theme Config", 
-		callback = function()
-			loadThemeConfig(ThemeConfigs:getValue())
-		end
-	})
+		info.value = value
+		info.old = value
+
+		global.valset(library.flags, info.flag, info.value)
+		global.valset(library.pointers, info.pointer, info)
+
+		global.thread(info.callback)(value)
+		global.thread(info.listener)(value)
+
+		objects ['value'].Text = info.value .. info.suffix
+		objects ['accent']:tween{duration = 0.1, goal = {Size = global.dim2((info.value - info.min) / (info.max - info.min), 0, 1, 0)}}
+	end
+
+	objects ['value']:connect("FocusLost", function()
+		info.value = global.num(objects ['value'].Text) or info.value
+		info.value = global.clamp(global.round(info.value, info.float), info.min, info.max)
+
+		objects ['value'].Text = info.value
+
+		info:set("default", info.value)
+	end)
+
+	objects ['hitbox']:connect("MouseEnter", function()
+		if info.hovered then return end
+
+		info:set("hover", true)
+	end)
+
+	objects ['hitbox']:connect("MouseLeave", function()
+		if not info.hovered or info.active then return end
+
+		info:set("hover", false)
+	end)
+
+	objects ['hitbox']:connect("InputBegan", function(input)
+		if input.UserInputType.Name ~= "MouseButton1" then return end
+
+		info:set("default", input)
+		info.active = true
+	end)
+
+	objects ['hitbox']:connect("InputEnded", function(input)
+		if input.UserInputType.Name ~= "MouseButton1" then return end
+
+		info.active = false
+		info:set("default", input)
+		info:set("hover", info.active)
+	end)
+
+	object:connection(global.userinput.InputChanged, function(input)
+		if input.UserInputType.Name ~= "MouseMovement" or not info.active then return end
+
+		info:set("default", input)
+		info:set("hover", info.active)
+	end)
+
+	-- global.valset(library.configs, info.flag, info.config)
+	global.valset(library.flags, info.flag, info.value)
+	global.valset(library.pointers, info.pointer, info)
+
+	global.insert(self.elements, info)
+
+	return info
 end
 
--- Set users theme choice or default theme when initiliazed, could make this cleaner lol, but nah.
-Theme:registerToObjects({
-	{object = Glow, property = "ImageColor3", theme = {"PrimaryBackgroundColor"}},
-	{object = Background, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
-	{object = Line , property = "BackgroundColor3", theme = {"Line"}},
-	{object = Tabs , property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
-	{object = Filler , property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
-	{object = Title , property = "TextColor3", theme = {"PrimaryTextColor"}},
-	{object = Assets.Pages.Fade, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
-})
+-- Section > Textbox
+library.textbox = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
 
--- Make UI Draggable and Resizable
-Utility:draggable(Library, Glow)
-Utility:resizable(Library, Glow.Background.Pages.Resize, Glow)
+	info.value = info.value or ""
+	info.title = info.title or "Textbox"
+	info.order = info.order or #self.elements + 1
+	info.callback = info.callback or function() end
+	info.flag = library.next(info.flag or "Textbox")
+	info.pointer = info.pointer or info.flag
+	info.config = global.declare(true, info.config)
+	info.visible = global.declare(true, info.visible)
 
--- Clean up Addon objects with no Addons
-task.spawn(function()
-	while not Library.managerCreated do
-		task.wait()
-	end
-	
-	for _, addon in pairs(Library.Addons) do
-		if addon.Parent == nil then
-			addon:Destroy()
+	info.is = "textbox"
+
+	info.hovered = false
+	info.fits = false
+	info.connected = {}
+	info.functions = {}
+
+	info.listener = function(...)
+		for _, func in info.connected do
+			global.thread(func)(...)
 		end
 	end
-end)
+
+	local objects = {} do
+		objects ['element'] = self.objects ['content']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "element",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(0, 100, 0, 31),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			LayoutOrder = info.order,
+			Visible = info.visible
+		})
+
+		objects ['label'] = objects ['element']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Name = "label",
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = global.dim2(0, 0, 0, 13),
+			Position = global.dim2(0, 16, 0, 0),
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['safezone'] = objects ['label']:create("UIPadding", {
+			PaddingTop = global.dim(0, 6),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1)
+		})
+
+		objects ['textbox'] = objects ['element']:create("Frame", {
+			Name = "textbox",
+			Position = global.dim2(0, 16, 0, 12),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, -35, 0, 16),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(25, 25, 25)
+		})
+
+		objects ['value'] = objects ['textbox']:create("TextBox", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.value,
+			Name = "input",
+			Size = global.dim2(1, -8, 1, 0),
+			Position = global.dim2(0, 4, 0, 0),
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			BorderSizePixel = 0,
+			ClipsDescendants = true,
+			TextSize = 9,
+			ClearTextOnFocus = false,
+			BackgroundColor3 = global.rgb(25, 25, 25)
+		})
+
+		objects ['fade'] = objects ['textbox']:create("UIGradient", {
+			Rotation = 90,
+			Name = "fade",
+			Color = global.rgbseq{global.rgbkey(0, global.rgb(255, 255, 255)), global.rgbkey(0.37, global.rgb(231, 231, 231)), global.rgbkey(1, global.rgb(155, 155, 155))}
+		})
+
+		objects ['border'] = objects ['textbox']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		info.fits = objects ['value'].TextFits
+		info.objects = objects
+	end
+
+	info.functions.hover = function(bool)
+		if info.hovered == bool then return end
+		info.hovered = global.declare(not info.active, bool)
+
+		objects ['value']:tween{duration = 0.1, goal = {BackgroundColor3 = info.hovered and global.rgb(30, 30, 30) or global.rgb(25, 25, 25)}}
+	end
+
+	info.functions.value = function(str)
+		if str == info.value then return end
+
+		info.value = str
+		objects ['value'].Text = info.value
+
+		global.thread(info.callback)(info.value, info.active)
+		global.thread(info.listener)(info.value, info.active)
+
+		info.fits = objects ['value'].TextBounds.X <= objects ['value'].AbsoluteSize.X
+	end
+
+	info.functions.scroll = function()
+		while library.loaded and global.wait() do
+			if info.fits or info.active then continue end
+
+			objects ['value'].Text = info.value
+			global.wait(1)
+
+			for interval = 0, global.length(info.value) do
+				if objects ['value'].TextBounds.X <= objects ['value'].AbsoluteSize.X or info.active then break end
+
+				objects ['value'].Text = global.sub(info.value, interval, global.length(info.value))
+				global.wait(.15)
+			end
+		end
+	end
+
+	objects ['value']:connect("Focused", function()
+		info.active = true
+
+		info:set("hover", info.active)
+
+		global.valset(library.flags, info.flag, info.value)
+		global.valset(library.pointers, info.pointer, info)
+
+		global.thread(info.callback)(info.value, info.active)
+		global.thread(info.listener)(info.value, info.active)
+
+		objects ['value'].Text = info.value
+	end)
+
+	objects ['value']:connect("FocusLost", function(entered)
+		info.active = false
+
+		info:set("value", objects ['value'].Text)
+	end)
+
+	objects ['value']:connect("MouseEnter", function()
+		if info.hovered then return end
+
+		info:set("hover", true)
+	end)
+
+	objects ['value']:connect("MouseLeave", function()
+		if not info.hovered or info.active then return end
+
+		info:set("hover", false)
+	end)
+
+	library.onload:connect(info.functions.scroll)
+
+	-- global.valset(library.configs, info.flag, info.config)
+	global.valset(library.flags, info.flag, info.value)
+	global.valset(library.pointers, info.pointer, info)
+
+	global.insert(self.elements, info)
+
+	return info
+end
+
+-- Section > Button
+library.button = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.title = info.title or "Textbox"
+	info.order = info.order or #self.elements + 1
+	info.callback = info.callback or function() end
+	info.flag = library.next(info.flag or "Button")
+	info.pointer = info.pointer or info.flag
+	info.visible = global.declare(true, info.visible)
+
+	info.is = "button"
+
+	info.hovered = false
+	info.connected = {}
+	info.functions = {}
+
+	info.listener = function(...)
+		for _, func in info.connected do
+			global.thread(func)(...)
+		end
+	end
+
+	local objects = {} do
+		objects ['element'] = self.objects ['content']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "element",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(0, 100, 0, 20),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255),
+			LayoutOrder = info.order,
+			Visible = info.visible
+		})
+
+		objects ['button'] = objects ['element']:create("Frame", {
+			AnchorPoint = global.vec2(0, 0.5),
+			Name = "button",
+			Position = global.dim2(0, 16, 0.5, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, -35, 0, 16),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(25, 25, 25)
+		})
+
+		objects ['fade'] = objects ['button']:create("UIGradient", {
+			Rotation = 90,
+			Name = "fade",
+			Color = global.rgbseq{global.rgbkey(0, global.rgb(255, 255, 255)), global.rgbkey(0.37, global.rgb(231, 231, 231)), global.rgbkey(1, global.rgb(155, 155, 155))}
+		})
+
+		objects ['border'] = objects ['button']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['label'] = objects ['button']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Name = "label",
+			AnchorPoint = global.vec2(0.5, 0.5),
+			Size = global.dim2(0, 0, 1, 0),
+			BackgroundTransparency = 1,
+			Position = global.dim2(0.5, 0, 0.5, -1),
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['safezone'] = objects ['label']:create("UIPadding", {
+			PaddingTop = global.dim(0, 9),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1)
+		})
+
+		objects ['hitbox'] = objects ['element']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			AutoButtonColor = false,
+			AnchorPoint = global.vec2(0, 0.5),
+			Name = "hitbox",
+			BackgroundTransparency = 1,
+			Position = global.dim2(0, 16, 0.5, 0),
+			Size = global.dim2(1, -35, 0, 16),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		info.objects = objects
+	end
+
+	info.functions.hover = function(bool)
+		if info.hovered == bool then return end
+		info.hovered = global.declare(not info.hovered, bool)
+
+		objects ['button']:tween{duration = 0.1, goal = {BackgroundColor3 = info.hovered and global.rgb(30, 30, 30) or global.rgb(25, 25, 25)}}
+	end
+
+	info.functions.active = function()
+		info:set("hover", false)
+
+		global.wcall(.1, function()
+			info:set("hover", true)
+		end)
+
+		global.valset(library.flags, info.flag, info.active)
+		global.valset(library.pointers, info.pointer, info)
+
+		global.thread(info.callback)(info.value, info.active)
+		global.thread(info.listener)(info.value, info.active)
+	end
+
+	objects ['hitbox']:connect("InputEnded", function(input)
+		if input.UserInputType.Name ~= "MouseButton1" then return end
+
+		info:set("active")
+	end)
+
+	objects ['hitbox']:connect("MouseEnter", function()
+		if info.hovered then return end
+
+		info:set("hover", true)
+	end)
+
+	objects ['hitbox']:connect("MouseLeave", function()
+		if not info.hovered then return end
+
+		info:set("hover", false)
+	end)
+
+	global.valset(library.flags, info.flag, info.active)
+	global.valset(library.pointers, info.pointer, info)
+
+	global.insert(self.elements, info)
+
+	return info
+end
+
+-- Section > Dropdown
+library.dropdown = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.multi = info.multi or false
+	info.title = info.title or "Dropdown"
+	info.options = info.options or {1, 2, 3}
+	info.maxheight = info.maxheight or #info.options
+	info.order = info.order or #self.elements + 1
+	info.default = info.default or info.options[1]
+	info.placeholder = info.placeholder or "None"
+	info.callback = info.callback or function() end
+	info.flag = library.next(info.flag or "Dropdown")
+	info.pointer = info.pointer or info.flag
+	info.config = global.declare(true, info.config)
+	info.visible = global.declare(true, info.visible)
+
+	info.is = "dropdown"
+
+	info.popuphovered = false
+	info.hovered = false
+	info.opened = false
+	info.values = {}
+	info.connected = {}
+	info.functions = {}
+
+	info.listener = function(...)
+		for _, func in info.connected do
+			global.thread(func)(...)
+		end
+	end
+
+	local objects = {} do
+		objects ['element'] = self.objects ['content']:create("Frame", {
+			BackgroundTransparency = 1,
+			Name = "element",
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(0, 100, 0, 33),
+			BorderSizePixel = 0,
+			LayoutOrder = info.order,
+			Visible = info.visible,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['label'] = objects ['element']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Name = "label",
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = global.dim2(0, 0, 0, 17),
+			Position = global.dim2(0, 14, 0, 0),
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['safezone'] = objects ['label']:create("UIPadding", {
+			PaddingTop = global.dim(0, 6),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1)
+		})
+
+		objects ['dropdown'] = objects ['element']:create("Frame", {
+			Name = "dropdown",
+			Position = global.dim2(0, 16, 0, 14),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Size = global.dim2(1, -35, 0, 16),
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(25, 25, 25)
+		})
+
+		objects ['fade'] = objects ['dropdown']:create("UIGradient", {
+			Rotation = 90,
+			Name = "fade",
+			Color = global.rgbseq{global.rgbkey(0, global.rgb(255, 255, 255)), global.rgbkey(0.37, global.rgb(231, 231, 231)), global.rgbkey(1, global.rgb(155, 155, 155))}
+		})
+
+		objects ['border'] = objects ['dropdown']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['value'] = objects ['dropdown']:create("TextLabel", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.default or info.placeholder,
+			Name = "value",
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			Size = global.dim2(1, -20, 1, 0),
+			Position = global.dim2(0, 3, 0, 2),
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(18, 18, 18)
+		})
+
+		objects ['safezone'] = objects ['value']:create("UIPadding", {
+			PaddingTop = global.dim(0, 6),
+			Name = "safezone",
+			PaddingBottom = global.dim(0, 10),
+			PaddingRight = global.dim(0, 1),
+			PaddingLeft = global.dim(0, 1)
+		})
+
+		objects ['arrow'] = objects ['dropdown']:create("ImageLabel", {
+			ScaleType = Enum.ScaleType.Fit,
+			BorderColor3 = global.rgb(0, 0, 0),
+			Name = "arrow",
+			AnchorPoint = global.vec2(1, 0.5),
+			Image = "rbxassetid://82767477824527",
+			BackgroundTransparency = 1,
+			Position = global.dim2(1, -3, 0.5, 0),
+			Size = global.dim2(0, 6, 0, 4),
+			ResampleMode = Enum.ResamplerMode.Pixelated,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['hitbox'] = objects ['element']:create("TextButton", {
+			TextColor3 = global.rgb(0, 0, 0),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = "",
+			AutoButtonColor = false,
+			Name = "hitbox",
+			BackgroundTransparency = 1,
+			Position = global.dim2(0, 16, 0, 14),
+			Size = global.dim2(1, -35, 0, 16),
+			BorderSizePixel = 0,
+			TextSize = 12,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['drop'] = objects ['element']:create("Frame", {
+			Size = global.dim2(1, -35, 0, info.maxheight * 15 + 3),
+			Name = "drop",
+			Position = global.dim2(0, 16, 0.5, 14),
+			BorderColor3 = global.rgb(0, 0, 0),
+			ZIndex = 15,
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(23, 23, 23),
+			Visible = info.opened
+		})
+
+		objects ['border'] = objects ['drop']:create("UIStroke", {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			LineJoinMode = Enum.LineJoinMode.Miter,
+			Name = "border"
+		})
+
+		objects ['content'] = objects ['drop']:create("ScrollingFrame", {
+			AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			ScrollBarImageColor3 = global.rgb(255, 139, 62),
+			MidImage = "rbxassetid://121616077179803",
+			Active = true,
+			BorderColor3 = global.rgb(0, 0, 0),
+			ScrollBarThickness = 2,
+			Name = "content",
+			ZIndex = 15,
+			Size = global.dim2(1, -5, 1, 0),
+			CanvasSize = global.dim2(0, 0, 0, 0),
+			BackgroundTransparency = 1,
+			Position = global.dim2(0, 5, 0, 0),
+			TopImage = "rbxassetid://121616077179803",
+			BottomImage = "rbxassetid://121616077179803",
+			BorderSizePixel = 0,
+			BackgroundColor3 = global.rgb(255, 255, 255)
+		})
+
+		objects ['list'] = objects ['content']:create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Name = "list",
+			HorizontalFlex = Enum.UIFlexAlignment.Fill
+		})
+
+		global.insert(library.popups, {input = objects ['hitbox'], target = objects ['drop']})
+		info.objects = objects
+	end
+
+	info.functions.visible = function(bool)
+		if info.visible == bool then return end
+
+		info.visible = global.declare(not info.visible, bool)
+
+		objects ['element'].Visible = info.visible
+	end
+
+	info.functions.popopen = function()
+		if info.popuphovered or info.hovered or not info.opened then return end
+
+		info:set("open", false)
+	end
+
+	info.functions.hover = function(bool)
+		if info.hovered == bool then return end
+		info.hovered = global.declare(not info.hovered, bool)
+
+		objects ['dropdown']:tween{duration = 0.1, goal = {BackgroundColor3 = info.hovered and global.rgb(30, 30, 30) or global.rgb(25, 25, 25)}}
+	end
+
+	info.functions.open = function(bool)
+		info.opened = global.declare(not info.opened, bool)
+
+		objects ['drop'].Visible = info.opened
+	end
+
+	info.functions.height = function()
+		num = global.clamp(info.maxheight * 15, 0, objects ['list'].AbsoluteContentSize.Y) 
+
+		objects ['drop'].Size = global.dim2(1, -35, 0, num)
+	end
+
+	info.functions.list = function()
+		return info.options, info.values
+	end
+
+	info.functions.show = function(options, bool)
+		options = global.is(options) ~= "table" and {options} or options
+
+		for _, option in options do
+			info.values[option]:set("visible", bool)
+		end
+	end
+
+	info.functions.remove = function(self, options)
+		options = global.is(options) ~= "table" and {options} or options
+
+		for _, option in options do
+			info.values[option]:remove()
+		end
+	end
+
+	info.functions.default = function(options)
+		options = global.is(options) ~= "table" and {options} or options
+
+		for _, value in info.values do
+			value:set("default", global.tfind(options, value.title) ~= nil)
+		end
+
+		global.valset(library.flags, info.flag, info.default)
+		global.valset(library.pointers, info.pointer, info)
+	end
+
+	info.functions.refresh = function(options)
+		for _, value in info.values do
+			value:set("remove")
+		end
+
+		info.options = options or info.options
+		for _, value in info.options do
+			info:option({title = value, active = info.default == option})
+		end
+	end
+
+	objects ['hitbox']:connect("InputBegan", function(input)
+		if input.UserInputType.Name ~= "MouseButton1" then return end
+
+		info:set("open")
+	end)
+
+	objects ['hitbox']:connect("MouseEnter", function()
+		if info.hovered then return end
+
+		info:set("hover", true)
+	end)
+
+	objects ['hitbox']:connect("MouseLeave", function()
+		if not info.hovered then return end
+
+		info:set("hover", false)
+	end)
+
+	objects ['drop']:connect("MouseEnter", function()
+		if info.popuphovered then return end
+
+		info.popuphovered = true
+	end)
+
+	objects ['drop']:connect("MouseLeave", function()
+		if not info.popuphovered then return end
+
+		info.popuphovered = false
+	end)
+
+	object:connection(global.userinput.InputBegan, info.functions.popopen)
+	object:connection(objects ['list'].item:GetPropertyChangedSignal("AbsoluteContentSize"), info.functions.height)
+
+	for _, option in info.options do
+		info.default = info.multi and global.is(info.default) ~= "table" and {info.default} or info.default
+
+		info:option({title = option, active = info.multi and global.tfind(info.default, option) or info.default == option})
+	end
+
+	-- global.valset(library.configs, info.flag, info.config)
+	global.valset(library.flags, info.flag, info.default)
+	global.valset(library.pointers, info.pointer, info)
+
+	global.insert(self.configs, info)
+	global.insert(self.elements, info)
+
+	return info
+end
+
+-- Dropdown OR List > Option 
+library.option = function(self, info)
+	info = object.lowercase(info or {}, {oriented = true})
+
+	info.active = info.active or false
+	info.title = info.title
+
+	info.parent = self
+	info.visible = true
+	info.hovered = false
+	info.functions = {}
+
+	local objects = {} do
+		objects ['button'] = self.objects ['content']:create("TextButton", {
+			FontFace = library.primaryfont,
+			TextColor3 = global.rgb(200, 200, 200),
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			AutoButtonColor = false,
+			BorderSizePixel = 0,
+			Name = "button",
+			TextTransparency = info.active and 1 or 0,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Size = global.dim2(1, 0, 0, 15),
+			ZIndex = 15,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(23, 23, 23)
+		})
+
+		objects ['accent'] = objects ['button']:create("TextLabel", {
+			FontFace = library.boldfont,
+			TextColor3 = library.accent,
+			BorderColor3 = global.rgb(0, 0, 0),
+			Text = info.title,
+			Size = global.dim2(0, 0, 1, 0),
+			AnchorPoint = global.vec2(0, 0.5),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundTransparency = 1,
+			TextTransparency = info.active and 0 or 1,
+			Name = "accent",
+			Position = global.dim2(0, 0, 0.5, 0),
+			BorderSizePixel = 0,
+			ZIndex = 15,
+			TextSize = 9,
+			BackgroundColor3 = global.rgb(23, 23, 23)
+		})
+
+		objects ['safezone'] = objects ['button']:create("UIPadding", {
+			PaddingBottom = global.dim(0, 1),
+			Name = "safezone"
+		})
+
+		info.objects = objects
+	end
+
+	info.functions.hover = function(bool)
+		if info.hovered == bool then return end
+		info.hovered = global.declare(not info.hovered, bool)
+
+		objects ['button']:tween{duration = 0.1, goal = {BackgroundColor3 = info.hovered and global.rgb(24, 24, 24) or global.rgb(23, 23, 23)}}
+	end
+
+	info.functions.adjust = function(index)
+		if #info.parent.options == 0 then 
+			info.parent.objects ['value'].Text = info.parent.placeholder
+			return 
+		end
+
+		index += index > 1 and -1 or 1
+
+		if not info.parent.options[index] then
+			index += index > 1 and -1 or 1
+		end
 
 
+		info.parent:set("default", info.parent.options[index])
+	end
 
-return Library
+	info.functions.visible = function(bool)
+		if info.visible == bool then return end
+
+		info.visible = global.declare(not info.visible, bool)
+
+		local option = info.title 
+		local index = global.tfind(info.parent.options, option)
+
+		if info.visible and not index then
+			global["insert"](info.parent.options, option)
+		else
+			global.remove(info.parent.options, index)
+		end
+
+		objects ['button'].Visible = info.visible
+
+		if info.parent.default == option then 
+			info:set("adjust", index)
+		end
+
+		if not info.parent.multi then return end 
+
+		global.sort(info.parent.default, global.abc)
+		info.parent.objects ['value'].Text = global.concat(info.parent.default, ", ") or info.parent.placeholder
+	end
+
+	info.functions.remove = function()
+		local option = info.title 
+		local index = global.clean(info.parent.options, option)
+
+		global.clean(info.parent.multi and info.parent.default or {}, option)
+		global.valset(info.parent.values, option, nil)
+		
+		objects ['button']:clean()
+
+		if info.parent.default == option then
+			info:set("adjust", index)
+		end
+
+		if not info.parent.multi then return end 
+
+		global.sort(info.parent.default, global.abc)
+		info.parent.objects ['value'].Text = global.concat(info.parent.default, ", ") or info.parent.placeholder
+	end
+
+	info.functions.active = function(bool)
+		if bool == info.active then return end
+
+		info.active = global.declare(not info.active, bool)
+
+		objects ['button']:tween{duration = 0.1, goal = {TextTransparency = info.active and 1 or 0}}
+		objects ['accent']:tween{duration = 0.1, goal = {TextTransparency = info.active and 0 or 1}}
+	end
+
+	info.functions.multi = function(bool)
+		info:set("active", bool or not global.clean(info.parent.default, info.title))
+
+		global.thread(info.parent.callback)(info.parent.default)
+		global.thread(info.parent.listener)(info.parent.default)
+
+		if info.active and not global.tfind(info.parent.default, info.title) then 
+			global.insert(info.parent.default, info.title)
+		end
+
+		info.parent.objects ['value'].Text = global.concat(info.parent.default, ", ") or info.parent.placeholder
+	end
+
+	info.functions.default = function(bool)
+		if bool == info.active then return end
+
+		if info.parent.multi then info:set("multi", bool) return end
+
+		info.parent.default = info.title
+		info.parent.objects ['value'].Text = info.parent.default or info.parent.placeholder
+
+		for _, value in info.parent.values do
+			value:set("active", value == info.parent.values[info.parent.default])
+		end
+
+		global.thread(info.parent.callback)(info.parent.default)
+		global.thread(info.parent.listener)(info.parent.default)
+	end
+
+	objects ['button']:connect("InputBegan", function(input)
+		if input.UserInputType.Name ~= "MouseButton1" then return end
+
+		info:set("default")
+	end)
+
+	objects ['button']:connect("MouseEnter", function()
+		if info.hovered then return end
+
+		info:set("hover", true)
+	end)
+
+	objects ['button']:connect("MouseLeave", function()
+		if not info.hovered then return end
+
+		info:set("hover", false)
+	end)
+
+	global.valset(info, "remove", info.functions.remove)
+	global.valset(info.parent.values, info.title, info)
+
+	return info
+end
+
+object.lowercase(library, {native = true})
+object.lowercase(object, {native = true})
+object.lowercase(global, {native = true})
+
+return object.lowercase({
+	library = object.lowercase(library, {native = true}), 
+	object = object.lowercase(object, {native = true}), 
+	global = object.lowercase(global, {native = true}),
+
+	import = function(self, info)
+		info = object.lowercase(info or {}, {oriented = true})
+
+		library.primaryfont = info.primaryfont or library.primaryfont or Font.new("rbxasset://fonts/families/Bangers.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+		library.secondaryfont = info.secondaryfont or library.secondaryfont or Font.new("rbxasset://fonts/families/Bangers.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+		library.boldfont = info.boldfont or library.boldfont or Font.new("rbxasset://fonts/families/Bangers.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+		
+		return self.library, self.object, self.global
+	end
+}, {native = true})
